@@ -401,8 +401,8 @@ fn view_player_card<'a>(
 ) -> Element<'a, Message> {
     // Compact view: no album cover, just text and controls
 
-    // Truncate long titles/artists
-    let max_length = 40;
+    // Truncate long titles/artists - use shorter length to ensure controls are always visible
+    let max_length = 25;
     let title = if player.title.len() > max_length {
         format!("{}...", &player.title[0..max_length])
     } else {
@@ -422,6 +422,7 @@ fn view_player_card<'a>(
     };
 
     // Compact title row with status and identity
+    // Make the title column shrinkable to prioritize controls visibility
     let title_row = cosmic::widget::row()
         .spacing(space_s)
         .push(cosmic::widget::text::body(status_indicator))
@@ -431,6 +432,7 @@ fn view_player_card<'a>(
                 .push(cosmic::widget::text::body(title).size(12))
                 .push(cosmic::widget::text::caption(artist).size(10))
                 .push(cosmic::widget::text::caption(&player.identity).size(9))
+                .width(cosmic::iced::Length::Shrink)
         )
         .align_y(cosmic::iced::Alignment::Center);
 
