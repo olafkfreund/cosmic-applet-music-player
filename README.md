@@ -1,6 +1,6 @@
-# COSMIC Music Player Applet
+# Music Player Applet for the COSMIC™ Desktop
 
-A modern music player applet for the COSMIC desktop environment with MPRIS integration, providing seamless control of your music directly from the panel.
+A modern music player applet for the COSMIC™ desktop with MPRIS integration, providing seamless control of your music directly from the panel.
 
 ## Screenshots
 
@@ -101,7 +101,7 @@ This will build and install the latest development version directly from Git.
 ### Prerequisites
 
 - Rust 1.80+
-- COSMIC desktop environment
+- COSMIC™ desktop environment
 - Just build tool (`cargo install just`)
 - Git (for cloning)
 - System development packages (see Building Requirements below)
@@ -129,16 +129,16 @@ just clean
 
 ## Usage
 
-### Adding the Applet to COSMIC Panel
+### Adding the Applet to COSMIC™ Panel
 
-After installation, you need to add the Music Player applet to your COSMIC panel:
+After installation, you need to add the Music Player applet to your COSMIC™ panel:
 
-1. **Open COSMIC Settings**
+1. **Open COSMIC™ Settings**
 2. **Navigate to Desktop → Panel → Configure panel applets**
 3. **Find "Music Player" in the available applets list**
 4. **Click to add it to your panel**
 
-The applet will now appear as a music icon in your COSMIC panel.
+The applet will now appear as a music icon in your COSMIC™ panel.
 
 ### Using the Applet
 
@@ -171,7 +171,7 @@ The applet provides flexible player management through the Settings tab:
 ### Configuration Files
 
 The applet stores its configuration in:
-- `~/.config/cosmic/com.cosmic.MusicPlayer/`
+- `~/.config/cosmic/com.github.MusicPlayer/`
 
 No manual configuration editing is typically required.
 
@@ -186,7 +186,7 @@ Any application that implements the MPRIS D-Bus interface is supported, includin
 
 ## Technical Details
 
-- **Framework**: Built with libcosmic (COSMIC's UI toolkit)
+- **Framework**: Built with libcosmic (COSMIC™'s UI toolkit)
 - **Language**: Rust
 - **Integration**: MPRIS D-Bus interface
 - **Performance**: Lightweight, updates every 500ms
@@ -203,9 +203,9 @@ Contributions are welcome! Please feel free to submit pull requests or open issu
 ## Troubleshooting
 
 ### Applet not appearing in panel
-- Ensure the applet is properly installed: `which music-player` should return a path
-- Try restarting COSMIC or logging out/in
-- Check COSMIC Settings → Desktop → Panel → Configure panel applets
+- Ensure the applet is properly installed: `which cosmic-ext-applet-music-player` should return a path
+- Try restarting COSMIC™ or logging out/in
+- Check COSMIC™ Settings → Desktop → Panel → Configure panel applets
 
 ### No players showing in Settings
 - Click "Discover Players" to scan for available players

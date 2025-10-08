@@ -32,7 +32,7 @@ pub struct ConfigManager {
 
 impl ConfigManager {
     pub fn new() -> anyhow::Result<Self> {
-        let config = Config::new("com.cosmic.MusicPlayer", CONFIG_VERSION)?;
+        let config = Config::new("com.github.MusicPlayer", CONFIG_VERSION)?;
         let app_config = match config.get::<AppConfig>("config") {
             Ok(config) => config,
             Err(_) => {

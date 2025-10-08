@@ -1,13 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">
-  <id>com.cosmic.MusicPlayer</id>
+  <id>com.github.MusicPlayer</id>
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>GPL-3.0</project_license>
-  <project_group>COSMIC</project_group>
   <name>Music Player</name>
-  <summary>COSMIC music player with MPRIS integration</summary>
+  <summary>Music player applet with MPRIS integration for the COSMIC™ desktop</summary>
   <description>
-    <p>A COSMIC music player that provides media controls with MPRIS integration. Features include:</p>
+    <p>A music player applet for the COSMIC™ desktop that provides media controls with MPRIS integration. Features include:</p>
     <ul>
       <li>Real-time display of currently playing song and artist</li>
       <li>Album artwork display</li>
@@ -17,13 +16,13 @@
       <li>Support for any MPRIS-compatible music player</li>
     </ul>
   </description>
-  <launchable type="desktop-id">com.cosmic.MusicPlayer.desktop</launchable>
+  <launchable type="desktop-id">com.github.MusicPlayer.desktop</launchable>
   <icon type="stock">audio-headphones-symbolic</icon>
   <screenshots>
   </screenshots>
   <provides>
     <binaries>
-      <binary>music-player</binary>
+      <binary>cosmic-ext-applet-music-player</binary>
     </binaries>
   </provides>
 </component>

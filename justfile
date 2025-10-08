@@ -1,5 +1,5 @@
-name := 'music-player'
-export APPID := 'com.cosmic.MusicPlayer'
+name := 'cosmic-ext-applet-music-player'
+export APPID := 'com.github.MusicPlayer'
 
 rootdir := ''
 prefix := '/usr'

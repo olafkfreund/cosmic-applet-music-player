@@ -1,10 +1,10 @@
 [package]
-name = "music-player"
+name = "cosmic-ext-applet-music-player"
 version = "1.0.0"
 edition = "2021"
 license = "GPL-3.0"
 rust-version = "1.80"
-description = "COSMIC Music Player with MPRIS integration"
+description = "Music Player applet with MPRIS integration for the COSMIC™ desktop"
 authors = ["COSMIC Community"]
 
 [dependencies]

@@ -1077,6 +1077,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "cosmic-ext-applet-music-player"
+version = "1.0.0"
+dependencies = [
+ "anyhow",
+ "bytes",
+ "chrono",
+ "cosmic-config 0.1.0 (git+https://github.com/pop-os/libcosmic.git?rev=52b802a)",
+ "futures",
+ "image",
+ "libcosmic",
+ "libpulse-binding",
+ "mpris",
+ "reqwest",
+ "serde",
+ "tokio",
+ "toml",
+]
+
+[[package]]
 name = "cosmic-freedesktop-icons"
 version = "0.3.0"
 source = "git+https://github.com/pop-os/freedesktop-icons#8a05c322c482ff3c69cf34bacfee98907ac45307"
@@ -3479,25 +3498,6 @@ dependencies = [
  "enum-kinds",
  "from_variants",
  "thiserror 1.0.69",
-]
-
-[[package]]
-name = "music-player"
-version = "1.0.0"
-dependencies = [
- "anyhow",
- "bytes",
- "chrono",
- "cosmic-config 0.1.0 (git+https://github.com/pop-os/libcosmic.git?rev=52b802a)",
- "futures",
- "image",
- "libcosmic",
- "libpulse-binding",
- "mpris",
- "reqwest",
- "serde",
- "tokio",
- "toml",
 ]
 
 [[package]]

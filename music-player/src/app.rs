@@ -81,7 +81,7 @@ impl Application for CosmicAppletMusic {
     type Executor = cosmic::executor::Default;
     type Flags = ();
     type Message = Message;
-    const APP_ID: &'static str = "com.cosmic.MusicPlayer";
+    const APP_ID: &'static str = "com.github.MusicPlayer";
 
     fn core(&self) -> &Core {
         &self.core
