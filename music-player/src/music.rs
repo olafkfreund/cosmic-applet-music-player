@@ -4,7 +4,6 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::Arc;
-use std::time::{SystemTime, UNIX_EPOCH};
 use crate::audio::AudioController;
 
 #[derive(Debug, Clone)]
@@ -16,7 +15,6 @@ pub struct PlayerInfo {
     pub art_url: Option<String>,
     pub bus_name: String,
     pub identity: String,
-    pub last_changed: u64,
     pub can_control_volume: bool,
 }
 
@@ -36,10 +34,6 @@ impl Default for PlayerInfo {
             art_url: None,
             bus_name: String::new(),
             identity: String::new(),
-            last_changed: SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_secs(),
             can_control_volume: true,
         }
     }
@@ -73,13 +67,6 @@ impl MusicController {
             all_players: Rc::new(RefCell::new(HashMap::new())),
             audio_controller,
         }
-    }
-
-    fn get_current_timestamp() -> u64 {
-        SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs()
     }
 
     pub fn discover_all_players(&mut self) -> Result<()> {
@@ -197,7 +184,6 @@ impl MusicController {
             art_url,
             bus_name,
             identity,
-            last_changed: Self::get_current_timestamp(),
             can_control_volume,
         }
     }
@@ -251,7 +237,6 @@ impl MusicController {
                 art_url,
                 bus_name: bus_name.clone(),
                 identity: identity.clone(),
-                last_changed: Self::get_current_timestamp(),
                 can_control_volume,
             };
 

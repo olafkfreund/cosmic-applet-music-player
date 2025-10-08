@@ -7,7 +7,6 @@ use std::sync::{Arc, Mutex};
 pub struct AudioSinkInput {
     pub index: u32,
     pub application_name: String,
-    pub media_name: String,
     pub volume: f64,
 }
 
@@ -44,7 +43,6 @@ impl AudioController {
 
         let mut current_index: Option<u32> = None;
         let mut current_app_name = String::new();
-        let mut current_media_name = String::new();
         let mut current_volume = 1.0;
 
         for line in output_str.lines() {
@@ -58,7 +56,6 @@ impl AudioController {
                         AudioSinkInput {
                             index,
                             application_name: current_app_name.clone(),
-                            media_name: current_media_name.clone(),
                             volume: current_volume,
                         },
                     );
@@ -68,18 +65,11 @@ impl AudioController {
                 if let Some(index_str) = line.strip_prefix("Sink Input #") {
                     current_index = index_str.parse().ok();
                     current_app_name = String::new();
-                    current_media_name = String::new();
                     current_volume = 1.0;
                 }
             } else if line.starts_with("application.name = ") {
                 current_app_name = line
                     .strip_prefix("application.name = \"")
-                    .and_then(|s| s.strip_suffix("\""))
-                    .unwrap_or("")
-                    .to_string();
-            } else if line.starts_with("media.name = ") {
-                current_media_name = line
-                    .strip_prefix("media.name = \"")
                     .and_then(|s| s.strip_suffix("\""))
                     .unwrap_or("")
                     .to_string();
@@ -103,7 +93,6 @@ impl AudioController {
                 AudioSinkInput {
                     index,
                     application_name: current_app_name,
-                    media_name: current_media_name,
                     volume: current_volume,
                 },
             );
@@ -146,11 +135,6 @@ impl AudioController {
         }
 
         Ok(())
-    }
-
-    pub fn get_all_sink_inputs(&self) -> Vec<AudioSinkInput> {
-        let sink_inputs = self.sink_inputs.lock().unwrap();
-        sink_inputs.values().cloned().collect()
     }
 }
 
