@@ -18,19 +18,12 @@ reqwest = "0.12.20"
 image = "0.25.6"
 bytes = "1.10.1"
 toml = "0.8"
-cosmic-config = { git = "https://github.com/pop-os/libcosmic.git", rev = "52b802a" }
 libpulse-binding = "2.28"
 
 [dependencies.libcosmic]
 git = "https://github.com/pop-os/libcosmic.git"
 # To keep builds reproducible, libcosmic should be pegged to a rev.
 # This should be updated periodically.
-rev = "52b802a"
+rev = "f6039597"
 default-features = false
 features = ["applet", "tokio", "wayland", "autosize"]
-
-# Uncomment to test a locally-cloned libcosmic
-# [patch.'https://github.com/pop-os/libcosmic']
-# libcosmic = { path = "../libcosmic" }
-# cosmic-config = { path = "../libcosmic/cosmic-config" }
-# cosmic-theme = { path = "../libcosmic/cosmic-theme" }
