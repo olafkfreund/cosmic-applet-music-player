@@ -1139,12 +1139,12 @@ dependencies = [
 [[package]]
 name = "cosmic-config"
 version = "0.1.0"
-source = "git+https://github.com/pop-os/libcosmic.git#f6039597b72d3eefe2ee1d6528a04077982db238"
+source = "git+https://github.com/pop-os/libcosmic#f6039597b72d3eefe2ee1d6528a04077982db238"
 dependencies = [
  "atomicwrites",
- "cosmic-config-derive 0.1.0 (git+https://github.com/pop-os/libcosmic.git)",
+ "cosmic-config-derive 0.1.0 (git+https://github.com/pop-os/libcosmic)",
  "dirs",
- "iced_futures 0.14.0-dev (git+https://github.com/pop-os/libcosmic.git)",
+ "iced_futures 0.14.0-dev (git+https://github.com/pop-os/libcosmic)",
  "known-folders",
  "notify",
  "ron",
@@ -1165,7 +1165,7 @@ dependencies = [
 [[package]]
 name = "cosmic-config-derive"
 version = "0.1.0"
-source = "git+https://github.com/pop-os/libcosmic.git#f6039597b72d3eefe2ee1d6528a04077982db238"
+source = "git+https://github.com/pop-os/libcosmic#f6039597b72d3eefe2ee1d6528a04077982db238"
 dependencies = [
  "quote 1.0.43",
  "syn 2.0.114",
@@ -1209,7 +1209,7 @@ version = "0.1.0"
 source = "git+https://github.com/pop-os/cosmic-panel#8eb8a1b6305213ec7402cb2ec24bef6b501b978a"
 dependencies = [
  "anyhow",
- "cosmic-config 0.1.0 (git+https://github.com/pop-os/libcosmic.git)",
+ "cosmic-config 0.1.0 (git+https://github.com/pop-os/libcosmic)",
  "serde",
  "smithay-client-toolkit 0.20.0",
  "tracing",
@@ -2749,7 +2749,7 @@ dependencies = [
 [[package]]
 name = "iced_core"
 version = "0.14.0-dev"
-source = "git+https://github.com/pop-os/libcosmic.git#f6039597b72d3eefe2ee1d6528a04077982db238"
+source = "git+https://github.com/pop-os/libcosmic#f6039597b72d3eefe2ee1d6528a04077982db238"
 dependencies = [
  "bitflags 2.10.0",
  "bytes",
@@ -2785,10 +2785,10 @@ dependencies = [
 [[package]]
 name = "iced_futures"
 version = "0.14.0-dev"
-source = "git+https://github.com/pop-os/libcosmic.git#f6039597b72d3eefe2ee1d6528a04077982db238"
+source = "git+https://github.com/pop-os/libcosmic#f6039597b72d3eefe2ee1d6528a04077982db238"
 dependencies = [
  "futures",
- "iced_core 0.14.0-dev (git+https://github.com/pop-os/libcosmic.git)",
+ "iced_core 0.14.0-dev (git+https://github.com/pop-os/libcosmic)",
  "log",
  "rustc-hash 2.1.1",
  "wasm-bindgen-futures",
