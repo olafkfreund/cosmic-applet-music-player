@@ -77,17 +77,30 @@ This will build and install the latest development version directly from Git.
 
 ### NixOS
 
-**✅ WORKING**: This package now builds successfully using **Crane**, which handles Cargo.lock git dependencies correctly.
+**✅ WORKING**: This package builds successfully on NixOS using **Crane**, which properly handles Cargo.lock git dependencies.
 
-#### Option 1: Using the Flake (Recommended)
+#### Prerequisites for NixOS
 
-Add the flake as an input to your NixOS configuration:
+- NixOS 23.11 or later (unstable recommended for latest COSMIC packages)
+- Flakes enabled in your configuration:
+  ```nix
+  nix.settings.experimental-features = [ "nix-command" "flakes" ];
+  ```
+- COSMIC desktop environment installed
+
+#### Installation Methods
+
+##### Option 1: NixOS System Configuration (Recommended)
+
+Add this applet to your NixOS system configuration by including it as a flake input:
+
+**Step 1**: Add the flake input to your `flake.nix`:
 
 ```nix
-# In your flake.nix
 {
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+
     cosmic-music-player = {
       url = "github:olafkfreund/cosmic-applet-music-player";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -95,72 +108,194 @@ Add the flake as an input to your NixOS configuration:
   };
 
   outputs = { self, nixpkgs, cosmic-music-player, ... }: {
-    nixosConfigurations.yourhost = nixpkgs.lib.nixosSystem {
-      modules = [{
-        environment.systemPackages = [
-          cosmic-music-player.packages.x86_64-linux.default
-        ];
-      }];
+    nixosConfigurations.your-hostname = nixpkgs.lib.nixosSystem {
+      system = "x86_64-linux";
+      modules = [
+        ./configuration.nix
+        {
+          environment.systemPackages = [
+            cosmic-music-player.packages.x86_64-linux.default
+          ];
+        }
+      ];
     };
   };
 }
 ```
 
-Or build directly:
+**Step 2**: Rebuild your system:
 
 ```bash
-# Build the package
+sudo nixos-rebuild switch --flake .#your-hostname
+```
+
+**Step 3**: Verify installation:
+
+```bash
+which cosmic-ext-applet-music-player
+# Should output: /nix/store/.../bin/cosmic-ext-applet-music-player
+```
+
+**Step 4**: Add to COSMIC panel:
+1. Open COSMIC Settings
+2. Navigate to Desktop → Panel → Configure panel applets
+3. Find "Music Player" and add it to your panel
+
+##### Option 2: Home Manager Integration
+
+If you use Home Manager, you can install the applet in your user configuration:
+
+```nix
+{
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    home-manager = {
+      url = "github:nix-community/home-manager";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    cosmic-music-player = {
+      url = "github:olafkfreund/cosmic-applet-music-player";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+  };
+
+  outputs = { nixpkgs, home-manager, cosmic-music-player, ... }: {
+    homeConfigurations.your-username = home-manager.lib.homeManagerConfiguration {
+      pkgs = nixpkgs.legacyPackages.x86_64-linux;
+      modules = [
+        {
+          home.packages = [
+            cosmic-music-player.packages.x86_64-linux.default
+          ];
+        }
+      ];
+    };
+  };
+}
+```
+
+Then rebuild:
+```bash
+home-manager switch --flake .#your-username
+```
+
+##### Option 3: Temporary Installation / Testing
+
+Try the applet without installing it permanently:
+
+```bash
+# Run directly without installing
+nix run github:olafkfreund/cosmic-applet-music-player
+
+# Build and examine the package
 nix build github:olafkfreund/cosmic-applet-music-player
 
-# Run directly
-nix run github:olafkfreund/cosmic-applet-music-player
+# Run the built binary
+./result/bin/cosmic-ext-applet-music-player
 ```
 
-#### Option 2: Using the Flake (Development)
+##### Option 4: Development Environment
 
-This repository includes a `flake.nix` for development environments:
-
-```bash
-# Enter development shell with all dependencies
-nix develop github:olafkfreund/cosmic-applet-music-player
-
-# Now you can build and test
-cd music-player
-cargo build
-cargo run
-```
-
-The development shell includes:
-- Rust toolchain
-- rust-analyzer (LSP)
-- clippy and rustfmt
-- cargo-watch
-- All system dependencies
-
-#### Option 3: Custom Derivation (Alternative)
-
-If you prefer to use `rustPlatform` with `cargoHash` instead of Crane, see [NIXOS-BUILD-NOTES.md](NIXOS-BUILD-NOTES.md) for a custom derivation approach.
-
-#### How It Works
-
-This package uses **Crane** instead of `rustPlatform` to handle the build. Crane fetches each git dependency separately rather than vendoring them all into a single directory, which avoids the duplicate package issues that affected `rustPlatform.buildRustPackage`.
-
-**Technical details:**
-- See [NIXOS-BUILD-NOTES.md](NIXOS-BUILD-NOTES.md) for the original issue analysis
-- See [FLAKE-USAGE.md](FLAKE-USAGE.md) for development workflows
-- See [GitHub issue #128](https://github.com/olafkfreund/nixos_config/issues/128) for the resolution discussion
-
-#### NixOS Development Workflow
+For development or contributing to the project:
 
 ```bash
-# Clone and enter dev environment
+# Clone the repository
 git clone https://github.com/olafkfreund/cosmic-applet-music-player
 cd cosmic-applet-music-player
+
+# Enter development shell with all dependencies
 nix develop
+
+# You now have access to:
+# - Rust toolchain (cargo, rustc)
+# - rust-analyzer (LSP)
+# - clippy and rustfmt
+# - cargo-watch
+# - All system dependencies (dbus, wayland, etc.)
 
 # Build and test
 cd music-player
-cargo watch -x run  # Auto-rebuild on file changes
+cargo build
+cargo run
+
+# Auto-rebuild on file changes
+cargo watch -x run
+```
+
+#### Post-Installation Configuration
+
+After installation, the applet will store its configuration in:
+```
+~/.config/cosmic/com.github.MusicPlayer/
+```
+
+Initial configuration steps:
+1. Launch any MPRIS-compatible music player (Spotify, VLC, etc.)
+2. Click the Music Player applet icon in your COSMIC panel
+3. Switch to the "Settings" tab
+4. Click "Discover Players" to find available players
+5. Select your preferred player from the list
+6. Return to "Controls" tab to start controlling your music
+
+#### NixOS-Specific Troubleshooting
+
+**Applet not found after installation:**
+```bash
+# Verify the package is in your system profile
+nix-store --query --requisites /run/current-system | grep music-player
+
+# Check if the binary exists
+ls -la /nix/store/*cosmic-ext-applet-music-player*/bin/
+
+# Restart COSMIC panel
+cosmic-panel --restart
+```
+
+**D-Bus permissions issues:**
+```nix
+# Ensure D-Bus is properly configured in your NixOS configuration
+services.dbus.enable = true;
+```
+
+**PulseAudio/PipeWire not detected:**
+```nix
+# For PipeWire (recommended for COSMIC)
+services.pipewire = {
+  enable = true;
+  pulse.enable = true;
+};
+
+# For PulseAudio
+hardware.pulseaudio.enable = true;
+```
+
+#### Technical Details
+
+This package uses **Crane** instead of the standard `rustPlatform.buildRustPackage` to handle the build:
+
+- **Why Crane?** The project has git dependencies with duplicate entries in Cargo.lock (different URL formats for the same package). Crane fetches each git dependency separately rather than vendoring them all into a single directory, which avoids the duplicate package FileExistsError that affects `rustPlatform`.
+
+- **Build Output**: The build produces a ~19MB stripped binary
+
+- **Dependencies**: Automatically includes all required system libraries (dbus, wayland, openssl, libpulseaudio, libxkbcommon)
+
+**For more information:**
+- [NIXOS-BUILD-NOTES.md](NIXOS-BUILD-NOTES.md) - Detailed analysis of the Cargo.lock issue and solutions
+- [FLAKE-USAGE.md](FLAKE-USAGE.md) - Complete development workflows and flake usage
+- [GitHub issue #128](https://github.com/olafkfreund/nixos_config/issues/128) - Resolution discussion
+
+#### Updating the Package
+
+To update to the latest version:
+
+```bash
+# Update the flake lock
+nix flake lock --update-input cosmic-music-player
+
+# Rebuild your system or home-manager configuration
+sudo nixos-rebuild switch --flake .#your-hostname
+# or
+home-manager switch --flake .#your-username
 ```
 
 ### Build from Source (Other Distributions)
