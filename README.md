@@ -75,6 +75,136 @@ yay -S cosmic-applet-music-player-git
 
 This will build and install the latest development version directly from Git.
 
+### NixOS
+
+**⚠️ Note**: This package currently has a known issue with Cargo.lock duplicate git dependencies that affects NixOS builds. Workarounds are documented below.
+
+#### Option 1: Custom Derivation (Recommended)
+
+Create a derivation in your NixOS configuration:
+
+```nix
+# In your configuration.nix or as a separate package file
+{ lib, rustPlatform, fetchFromGitHub, pkg-config, dbus, openssl, libpulseaudio, libxkbcommon, wayland }:
+
+rustPlatform.buildRustPackage rec {
+  pname = "cosmic-ext-applet-music-player";
+  version = "1.0.0";
+
+  src = fetchFromGitHub {
+    owner = "olafkfreund";  # or "Ebbo" for upstream
+    repo = "cosmic-applet-music-player";
+    rev = "master";  # or specific commit/tag
+    hash = "";  # Use lib.fakeHash initially, then update with real hash
+  };
+
+  sourceRoot = "${src.name}/music-player";
+
+  cargoHash = "";  # Use lib.fakeHash initially, then update with real hash
+
+  nativeBuildInputs = [ pkg-config ];
+
+  buildInputs = [
+    dbus
+    openssl
+    libpulseaudio
+    libxkbcommon
+    wayland
+  ];
+
+  meta = with lib; {
+    description = "Music Player applet with MPRIS integration for COSMIC desktop";
+    homepage = "https://github.com/Ebbo/cosmic-applet-music-player";
+    license = licenses.gpl3Only;
+    platforms = platforms.linux;
+    mainProgram = "cosmic-ext-applet-music-player";
+  };
+}
+```
+
+Then add to your `configuration.nix`:
+
+```nix
+{
+  environment.systemPackages = [
+    (pkgs.callPackage ./path/to/music-player.nix {})
+  ];
+}
+```
+
+**To get the correct hashes:**
+
+1. Set both `hash` and `cargoHash` to empty strings `""`
+2. Run `nixos-rebuild build` (or `nix-build`)
+3. Copy the correct hashes from the error messages
+4. Update the derivation with the real hashes
+
+#### Option 2: Using the Flake (Development)
+
+This repository includes a `flake.nix` for development environments:
+
+```bash
+# Enter development shell with all dependencies
+nix develop github:olafkfreund/cosmic-applet-music-player
+
+# Now you can build and test
+cd music-player
+cargo build
+cargo run
+```
+
+The development shell includes:
+- Rust toolchain
+- rust-analyzer (LSP)
+- clippy and rustfmt
+- cargo-watch
+- All system dependencies
+
+#### Option 3: Flake as Input (Future)
+
+Once the Cargo.lock duplicate issue is resolved, you can use the flake directly:
+
+```nix
+{
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    cosmic-music-player.url = "github:olafkfreund/cosmic-applet-music-player";
+  };
+
+  outputs = { self, nixpkgs, cosmic-music-player, ... }: {
+    nixosConfigurations.yourhost = nixpkgs.lib.nixosSystem {
+      modules = [{
+        environment.systemPackages = [
+          cosmic-music-player.packages.x86_64-linux.default
+        ];
+      }];
+    };
+  };
+}
+```
+
+#### Known Issues
+
+This package has duplicate entries in `Cargo.lock` due to inconsistent git URL formatting in the libcosmic dependency chain. This is an upstream issue that prevents direct flake builds but can be worked around using `cargoHash` as shown in Option 1.
+
+**For detailed information:**
+- See [NIXOS-BUILD-NOTES.md](NIXOS-BUILD-NOTES.md) for technical details
+- See [FLAKE-USAGE.md](FLAKE-USAGE.md) for development workflows
+- Track issue: [nixos_config#128](https://github.com/olafkfreund/nixos_config/issues/128)
+
+#### NixOS Development Workflow
+
+```bash
+# Clone and enter dev environment
+git clone https://github.com/olafkfreund/cosmic-applet-music-player
+cd cosmic-applet-music-player
+nix develop
+
+# Build and test
+cd music-player
+cargo watch -x run  # Auto-rebuild on file changes
+```
+
 ### Build from Source (Other Distributions)
 
 1. **Clone the repository**:
