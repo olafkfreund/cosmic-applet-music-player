@@ -50,7 +50,7 @@
 
           meta = with pkgs.lib; {
             description = "Music Player applet with MPRIS integration for COSMIC desktop";
-            homepage = "https://github.com/Ebbo/cosmic-applet-music-player";
+            homepage = "https://github.com/olafkfreund/cosmic-applet-music-player";
             license = licenses.gpl3Only;
             maintainers = with maintainers; [ ];
             platforms = platforms.linux;

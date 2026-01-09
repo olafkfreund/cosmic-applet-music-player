@@ -156,7 +156,7 @@ rustPlatform.buildRustPackage rec {
   version = "1.0.0";
 
   src = fetchFromGitHub {
-    owner = "olafkfreund";  # or "Ebbo" for upstream
+    owner = "olafkfreund";
     repo = "cosmic-applet-music-player";
     rev = "v${version}";  # or specific commit
     hash = "sha256-AAAA...";  # Use lib.fakeHash initially
@@ -190,7 +190,7 @@ rustPlatform.buildRustPackage rec {
 
   meta = with lib; {
     description = "Music Player applet with MPRIS integration for COSMIC desktop";
-    homepage = "https://github.com/Ebbo/cosmic-applet-music-player";
+    homepage = "https://github.com/olafkfreund/cosmic-applet-music-player";
     license = licenses.gpl3Only;
     maintainers = with maintainers; [ ];  # Add your name
     platforms = platforms.linux;

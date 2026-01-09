@@ -302,7 +302,7 @@ home-manager switch --flake .#your-username
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/Ebbo/cosmic-applet-music-player.git
+   git clone https://github.com/olafkfreund/cosmic-applet-music-player.git
    cd cosmic-applet-music-player
    ```
 
