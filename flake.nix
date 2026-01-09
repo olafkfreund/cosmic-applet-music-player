@@ -3,88 +3,69 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    crane.url = "github:ipetkov/crane";
     flake-utils.url = "github:numtide/flake-utils";
-    rust-overlay.url = "github:oxalica/rust-overlay";
   };
 
-  outputs = { self, nixpkgs, flake-utils, rust-overlay }:
+  outputs = { self, nixpkgs, crane, flake-utils }:
     flake-utils.lib.eachDefaultSystem (system:
       let
-        overlays = [ (import rust-overlay) ];
-        pkgs = import nixpkgs {
-          inherit system overlays;
+        pkgs = nixpkgs.legacyPackages.${system};
+        craneLib = crane.mkLib pkgs;
+
+        # Common arguments for crane
+        commonArgs = {
+          src = craneLib.cleanCargoSource ./.;
+
+          # Build from the music-player subdirectory
+          pname = "cosmic-ext-applet-music-player";
+          version = "1.0.0";
+
+          nativeBuildInputs = with pkgs; [
+            pkg-config
+          ];
+
+          buildInputs = with pkgs; [
+            dbus
+            openssl
+            libpulseaudio
+            libxkbcommon
+            wayland
+          ];
+
+          # Required for Wayland support
+          LIBCLANG_PATH = "${pkgs.libclang.lib}/lib";
         };
 
-        # Use a custom vendor script that handles duplicates
-        cargoVendorDir = pkgs.stdenv.mkDerivation {
-          name = "cosmic-applet-music-player-vendor";
-          src = ./.;
+        # Build dependencies first (for caching)
+        cargoArtifacts = craneLib.buildDepsOnly (commonArgs // {
+          # Use the music-player subdirectory
+          cargoExtraArgs = "--manifest-path music-player/Cargo.toml";
+        });
 
-          nativeBuildInputs = [ pkgs.cargo ];
+        # Build the actual package
+        cosmic-music-player = craneLib.buildPackage (commonArgs // {
+          inherit cargoArtifacts;
+          cargoExtraArgs = "--manifest-path music-player/Cargo.toml";
 
-          buildPhase = ''
-            cd music-player
-            export CARGO_HOME=$TMPDIR/cargo
-            mkdir -p $out
-
-            # Vendor dependencies
-            cargo vendor --versioned-dirs $out 2>&1 | tee vendor.log || true
-
-            # Check if vendoring succeeded
-            if [ -d "$out/cosmic-config-0.1.0" ]; then
-              echo "Vendoring completed (with expected duplicate warnings)"
-            fi
-          '';
-
-          installPhase = "true";  # Already installed to $out
-        };
+          meta = with pkgs.lib; {
+            description = "Music Player applet with MPRIS integration for COSMIC desktop";
+            homepage = "https://github.com/Ebbo/cosmic-applet-music-player";
+            license = licenses.gpl3Only;
+            maintainers = with maintainers; [ ];
+            platforms = platforms.linux;
+            mainProgram = "cosmic-ext-applet-music-player";
+          };
+        });
       in
       {
         packages = {
-          cosmic-ext-applet-music-player = pkgs.rustPlatform.buildRustPackage {
-            pname = "cosmic-ext-applet-music-player";
-            version = "1.0.0";
-
-            src = ./.;
-
-            # Build from the music-player subdirectory
-            buildAndTestSubdir = "music-player";
-
-            # Simple cargoHash approach - let Nix handle the vendoring
-            cargoHash = "sha256-PYvv5DaxQLAEGy4ztRZQSjrJ5y5rRbhuvnLsrEt9yLg=";
-
-            nativeBuildInputs = with pkgs; [
-              pkg-config
-            ];
-
-            buildInputs = with pkgs; [
-              dbus
-              openssl
-              libpulseaudio
-              libxkbcommon
-              wayland
-            ];
-
-            # Required for Wayland support
-            LIBCLANG_PATH = "${pkgs.libclang.lib}/lib";
-
-            meta = with pkgs.lib; {
-              description = "Music Player applet with MPRIS integration for COSMIC desktop";
-              homepage = "https://github.com/Ebbo/cosmic-applet-music-player";
-              license = licenses.gpl3Only;
-              maintainers = with maintainers; [ ];
-              platforms = platforms.linux;
-              mainProgram = "cosmic-ext-applet-music-player";
-            };
-          };
-
-          default = self.packages.${system}.cosmic-ext-applet-music-player;
+          cosmic-ext-applet-music-player = cosmic-music-player;
+          default = cosmic-music-player;
         };
 
-        # Development shell with all build dependencies
-        devShells.default = pkgs.mkShell {
-          inputsFrom = [ self.packages.${system}.cosmic-ext-applet-music-player ];
-
+        # Crane provides a much better development shell
+        devShells.default = craneLib.devShell {
           packages = with pkgs; [
             rust-analyzer
             rustfmt
@@ -92,13 +73,40 @@
             cargo-watch
           ];
 
+          # Inherit build inputs from commonArgs
+          inputsFrom = [ cosmic-music-player ];
+
           RUST_SRC_PATH = "${pkgs.rust.packages.stable.rustPlatform.rustLibSrc}";
         };
 
         # Allow running the app directly with `nix run`
         apps.default = {
           type = "app";
-          program = "${self.packages.${system}.default}/bin/cosmic-ext-applet-music-player";
+          program = "${cosmic-music-player}/bin/cosmic-ext-applet-music-player";
+        };
+
+        # Checks (clippy, tests, etc.)
+        checks = {
+          # Run clippy on the workspace
+          workspace-clippy = craneLib.cargoClippy (commonArgs // {
+            inherit cargoArtifacts;
+            cargoExtraArgs = "--manifest-path music-player/Cargo.toml";
+            cargoClippyExtraArgs = "--all-targets -- --deny warnings";
+          });
+
+          # Run tests
+          workspace-test = craneLib.cargoNextest (commonArgs // {
+            inherit cargoArtifacts;
+            cargoExtraArgs = "--manifest-path music-player/Cargo.toml";
+            partitions = 1;
+            partitionType = "count";
+          });
+
+          # Check formatting
+          workspace-fmt = craneLib.cargoFmt {
+            src = ./.;
+            cargoExtraArgs = "--manifest-path music-player/Cargo.toml";
+          };
         };
       }
     );
