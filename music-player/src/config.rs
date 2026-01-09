@@ -1,4 +1,4 @@
-use cosmic_config::{Config, ConfigGet, ConfigSet};
+use cosmic::cosmic_config::{Config, ConfigGet, ConfigSet};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
