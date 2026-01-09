@@ -48,6 +48,24 @@
           inherit cargoArtifacts;
           cargoExtraArgs = "--manifest-path music-player/Cargo.toml";
 
+          # Install desktop file and metainfo for COSMIC to discover the applet
+          postInstall = ''
+            install -Dm644 res/com.github.MusicPlayer.desktop \
+              $out/share/applications/com.github.MusicPlayer.desktop
+
+            install -Dm644 res/com.github.MusicPlayer.metainfo.xml \
+              $out/share/metainfo/com.github.MusicPlayer.metainfo.xml
+
+            # Install icons if they exist
+            for icon in res/icons/hicolor/*/apps/com.github.MusicPlayer.svg; do
+              if [ -f "$icon" ]; then
+                size=$(echo $icon | grep -oP '\d+x\d+')
+                install -Dm644 "$icon" \
+                  "$out/share/icons/hicolor/$size/apps/com.github.MusicPlayer.svg"
+              fi
+            done
+          '';
+
           meta = with pkgs.lib; {
             description = "Music Player applet with MPRIS integration for COSMIC desktop";
             homepage = "https://github.com/olafkfreund/cosmic-applet-music-player";
