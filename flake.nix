@@ -15,7 +15,13 @@
 
         # Common arguments for crane
         commonArgs = {
-          src = craneLib.cleanCargoSource ./.;
+          # Include res/ directory for desktop files and icons
+          src = pkgs.lib.cleanSourceWith {
+            src = craneLib.path ./.;
+            filter = path: type:
+              (craneLib.filterCargoSources path type) ||
+              (builtins.match ".*res.*" path != null);
+          };
 
           # Build from the music-player subdirectory
           pname = "cosmic-ext-applet-music-player";
