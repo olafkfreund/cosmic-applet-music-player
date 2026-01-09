@@ -77,67 +77,44 @@ This will build and install the latest development version directly from Git.
 
 ### NixOS
 
-**⚠️ Note**: This package currently has a known issue with Cargo.lock duplicate git dependencies that affects NixOS builds. Workarounds are documented below.
+**✅ WORKING**: This package now builds successfully using **Crane**, which handles Cargo.lock git dependencies correctly.
 
-#### Option 1: Custom Derivation (Recommended)
+#### Option 1: Using the Flake (Recommended)
 
-Create a derivation in your NixOS configuration:
-
-```nix
-# In your configuration.nix or as a separate package file
-{ lib, rustPlatform, fetchFromGitHub, pkg-config, dbus, openssl, libpulseaudio, libxkbcommon, wayland }:
-
-rustPlatform.buildRustPackage rec {
-  pname = "cosmic-ext-applet-music-player";
-  version = "1.0.0";
-
-  src = fetchFromGitHub {
-    owner = "olafkfreund";  # or "Ebbo" for upstream
-    repo = "cosmic-applet-music-player";
-    rev = "master";  # or specific commit/tag
-    hash = "";  # Use lib.fakeHash initially, then update with real hash
-  };
-
-  sourceRoot = "${src.name}/music-player";
-
-  cargoHash = "";  # Use lib.fakeHash initially, then update with real hash
-
-  nativeBuildInputs = [ pkg-config ];
-
-  buildInputs = [
-    dbus
-    openssl
-    libpulseaudio
-    libxkbcommon
-    wayland
-  ];
-
-  meta = with lib; {
-    description = "Music Player applet with MPRIS integration for COSMIC desktop";
-    homepage = "https://github.com/Ebbo/cosmic-applet-music-player";
-    license = licenses.gpl3Only;
-    platforms = platforms.linux;
-    mainProgram = "cosmic-ext-applet-music-player";
-  };
-}
-```
-
-Then add to your `configuration.nix`:
+Add the flake as an input to your NixOS configuration:
 
 ```nix
+# In your flake.nix
 {
-  environment.systemPackages = [
-    (pkgs.callPackage ./path/to/music-player.nix {})
-  ];
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    cosmic-music-player = {
+      url = "github:olafkfreund/cosmic-applet-music-player";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+  };
+
+  outputs = { self, nixpkgs, cosmic-music-player, ... }: {
+    nixosConfigurations.yourhost = nixpkgs.lib.nixosSystem {
+      modules = [{
+        environment.systemPackages = [
+          cosmic-music-player.packages.x86_64-linux.default
+        ];
+      }];
+    };
+  };
 }
 ```
 
-**To get the correct hashes:**
+Or build directly:
 
-1. Set both `hash` and `cargoHash` to empty strings `""`
-2. Run `nixos-rebuild build` (or `nix-build`)
-3. Copy the correct hashes from the error messages
-4. Update the derivation with the real hashes
+```bash
+# Build the package
+nix build github:olafkfreund/cosmic-applet-music-player
+
+# Run directly
+nix run github:olafkfreund/cosmic-applet-music-player
+```
 
 #### Option 2: Using the Flake (Development)
 
@@ -160,37 +137,18 @@ The development shell includes:
 - cargo-watch
 - All system dependencies
 
-#### Option 3: Flake as Input (Future)
+#### Option 3: Custom Derivation (Alternative)
 
-Once the Cargo.lock duplicate issue is resolved, you can use the flake directly:
+If you prefer to use `rustPlatform` with `cargoHash` instead of Crane, see [NIXOS-BUILD-NOTES.md](NIXOS-BUILD-NOTES.md) for a custom derivation approach.
 
-```nix
-{
-  inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    cosmic-music-player.url = "github:olafkfreund/cosmic-applet-music-player";
-  };
+#### How It Works
 
-  outputs = { self, nixpkgs, cosmic-music-player, ... }: {
-    nixosConfigurations.yourhost = nixpkgs.lib.nixosSystem {
-      modules = [{
-        environment.systemPackages = [
-          cosmic-music-player.packages.x86_64-linux.default
-        ];
-      }];
-    };
-  };
-}
-```
+This package uses **Crane** instead of `rustPlatform` to handle the build. Crane fetches each git dependency separately rather than vendoring them all into a single directory, which avoids the duplicate package issues that affected `rustPlatform.buildRustPackage`.
 
-#### Known Issues
-
-This package has duplicate entries in `Cargo.lock` due to inconsistent git URL formatting in the libcosmic dependency chain. This is an upstream issue that prevents direct flake builds but can be worked around using `cargoHash` as shown in Option 1.
-
-**For detailed information:**
-- See [NIXOS-BUILD-NOTES.md](NIXOS-BUILD-NOTES.md) for technical details
+**Technical details:**
+- See [NIXOS-BUILD-NOTES.md](NIXOS-BUILD-NOTES.md) for the original issue analysis
 - See [FLAKE-USAGE.md](FLAKE-USAGE.md) for development workflows
-- Track issue: [nixos_config#128](https://github.com/olafkfreund/nixos_config/issues/128)
+- See [GitHub issue #128](https://github.com/olafkfreund/nixos_config/issues/128) for the resolution discussion
 
 #### NixOS Development Workflow
 

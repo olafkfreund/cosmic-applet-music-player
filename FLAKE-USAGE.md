@@ -2,68 +2,44 @@
 
 ## Overview
 
-This repository now includes a `flake.nix` for easy NixOS integration and local development.
+This repository includes a `flake.nix` using **Crane** for easy NixOS integration and local development.
 
 ## ✅ What Works
 
-1. **Local development shell** - Full Rust development environment
-2. **Package definition** - Complete derivation for building the applet
-3. **Direct execution** - Run the applet with `nix run`
-4. **Integration ready** - Reference from your nixos_config flake
+1. **✅ FULL BUILDS WORKING!** - Crane successfully handles the Cargo.lock duplicate issue
+2. **✅ Local development shell** - Full Rust development environment
+3. **✅ Package definition** - Complete working derivation
+4. **✅ Direct execution** - Run the applet with `nix run`
+5. **✅ Integration ready** - Reference from your nixos_config flake
 
-## Current Status: Known Issue
+## 🎉 SUCCESS: Cargo.lock Duplicate Issue SOLVED
 
-The Cargo.lock duplicate package issue **prevents the flake from building** successfully on current NixOS due to how Nix vendoring handles git dependencies with different URL formats.
+**Previous issue:** rustPlatform failed with duplicate git dependencies.
 
-**Error you'll see:**
-```
-FileExistsError: [Errno 17] File exists: '.../cosmic-config-0.1.0'
-```
+**Solution:** Switched to **Crane**, which handles git dependencies by fetching each source separately rather than vendoring into a single directory.
 
-This is the **same upstream issue** documented in `NIXOS-BUILD-NOTES.md` - it's not a flaw in the flake, but a limitation of how Cargo.lock encodes git dependencies.
+**Result:** ✅ Builds successfully, producing a working 19MB binary!
 
-## Workaround for Building
+## Building and Installation
 
-Until the upstream libcosmic dependency issue is resolved, use one of these approaches:
+### Quick Build
 
-### Option 1: Reference from your nixos_config (Recommended)
+```bash
+# Build the package
+nix build github:olafkfreund/cosmic-applet-music-player
 
-Create a derivation in your nixos_config that uses a custom vendoring approach:
+# Or locally
+nix build .#cosmic-ext-applet-music-player
 
-```nix
-# In your nixos_config/pkgs/cosmic-applets/music-player/default.nix
-{ lib, rustPlatform, fetchFromGitHub, pkg-config, dbus, openssl, libpulseaudio, libxkbcommon, wayland }:
-
-rustPlatform.buildRustPackage rec {
-  pname = "cosmic-ext-applet-music-player";
-  version = "1.0.0";
-
-  src = fetchFromGitHub {
-    owner = "olafkfreund";
-    repo = "cosmic-applet-music-player";
-    rev = "master";  # or specific commit
-    hash = lib.fakeHash;  # Update after first build
-  };
-
-  sourceRoot = "${src.name}/music-player";
-
-  cargoHash = lib.fakeHash;  # Update after first build
-
-  nativeBuildInputs = [ pkg-config ];
-  buildInputs = [ dbus openssl libpulseaudio libxkbcommon wayland ];
-
-  meta = with lib; {
-    description = "Music Player applet for COSMIC desktop";
-    homepage = "https://github.com/Ebbo/cosmic-applet-music-player";
-    license = licenses.gpl3Only;
-    platforms = platforms.linux;
-  };
-}
+# Run directly
+nix run github:olafkfreund/cosmic-applet-music-player
 ```
 
-### Option 2: Use the Flake as Input (When Building Works)
+### Integration with nixos_config
 
-Once the duplicate issue is resolved upstream, add to your nixos_config flake:
+#### Option 1: Direct Flake Reference (Recommended)
+
+Add to your nixos_config flake:
 
 ```nix
 {
