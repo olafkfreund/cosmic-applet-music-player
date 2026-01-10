@@ -15,12 +15,13 @@
 
         # Common arguments for crane
         commonArgs = {
-          # Include res/ directory for desktop files and icons
+          # Include res/ directory and justfile for installation
           src = pkgs.lib.cleanSourceWith {
             src = craneLib.path ./.;
             filter = path: type:
               (craneLib.filterCargoSources path type) ||
-              (builtins.match ".*res.*" path != null);
+              (builtins.match ".*res.*" path != null) ||
+              (builtins.match ".*justfile$" path != null);
           };
 
           # Build from the music-player subdirectory
@@ -54,22 +55,16 @@
           inherit cargoArtifacts;
           cargoExtraArgs = "--manifest-path music-player/Cargo.toml";
 
-          # Install desktop file and metainfo for COSMIC to discover the applet
-          postInstall = ''
-            install -Dm644 res/com.github.MusicPlayer.desktop \
-              $out/share/applications/com.github.MusicPlayer.desktop
+          # Add just to nativeBuildInputs for installation
+          nativeBuildInputs = commonArgs.nativeBuildInputs ++ [ pkgs.just ];
 
-            install -Dm644 res/com.github.MusicPlayer.metainfo.xml \
-              $out/share/metainfo/com.github.MusicPlayer.metainfo.xml
+          # Use the justfile install target like official COSMIC applets
+          installPhase = ''
+            runHook preInstall
 
-            # Install icons if they exist
-            for icon in res/icons/hicolor/*/apps/com.github.MusicPlayer.svg; do
-              if [ -f "$icon" ]; then
-                size=$(echo $icon | grep -oP '\d+x\d+')
-                install -Dm644 "$icon" \
-                  "$out/share/icons/hicolor/$size/apps/com.github.MusicPlayer.svg"
-              fi
-            done
+            just --set prefix "$out" --set bin-src "target/release/cosmic-ext-applet-music-player" install
+
+            runHook postInstall
           '';
 
           meta = with pkgs.lib; {
