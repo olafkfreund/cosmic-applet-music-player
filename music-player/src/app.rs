@@ -6,6 +6,7 @@ use cosmic::iced::window::Id;
 use cosmic::iced::Limits;
 use cosmic::{Application, Element};
 use mpris::PlaybackStatus;
+use bytes::Bytes;
 
 mod subscription;
 mod view;
@@ -302,19 +303,49 @@ impl CosmicAppletMusic {
     fn handle_load_album_art(&mut self, url: String) -> Task<Message> {
         Task::perform(
             async move {
-                match reqwest::get(&url).await {
-                    Ok(response) => match response.bytes().await {
-                        Ok(bytes) => {
-                            let handle = cosmic::iced::widget::image::Handle::from_bytes(bytes);
-                            Some(handle)
-                        }
-                        Err(_) => None,
-                    },
-                    Err(_) => None,
-                }
+                Self::load_image_from_url(&url).await
             },
             |result| cosmic::Action::App(Message::AlbumArtLoaded(result)),
         )
+    }
+
+    async fn load_image_from_url(url: &str) -> Option<cosmic::iced::widget::image::Handle> {
+        // Handle file:// URLs (common for local album art)
+        if url.starts_with("file://") {
+            let path = url.trim_start_matches("file://");
+            match tokio::fs::read(path).await {
+                Ok(bytes) => {
+                    eprintln!("Successfully loaded album art from file: {}", path);
+                    Some(cosmic::iced::widget::image::Handle::from_bytes(Bytes::from(bytes)))
+                }
+                Err(e) => {
+                    eprintln!("Failed to load album art from file {}: {}", path, e);
+                    None
+                }
+            }
+        }
+        // Handle HTTP/HTTPS URLs
+        else if url.starts_with("http://") || url.starts_with("https://") {
+            match reqwest::get(url).await {
+                Ok(response) => match response.bytes().await {
+                    Ok(bytes) => {
+                        eprintln!("Successfully loaded album art from URL: {}", url);
+                        Some(cosmic::iced::widget::image::Handle::from_bytes(bytes))
+                    }
+                    Err(e) => {
+                        eprintln!("Failed to fetch album art bytes: {}", e);
+                        None
+                    }
+                },
+                Err(e) => {
+                    eprintln!("Failed to fetch album art from {}: {}", url, e);
+                    None
+                }
+            }
+        } else {
+            eprintln!("Unsupported album art URL format: {}", url);
+            None
+        }
     }
 
     fn handle_album_art_loaded(
@@ -424,16 +455,8 @@ impl CosmicAppletMusic {
     fn handle_load_album_art_player(&mut self, bus_name: String, url: String) -> Task<Message> {
         Task::perform(
             async move {
-                match reqwest::get(&url).await {
-                    Ok(response) => match response.bytes().await {
-                        Ok(bytes) => {
-                            let handle = cosmic::iced::widget::image::Handle::from_bytes(bytes);
-                            (bus_name, Some(handle))
-                        }
-                        Err(_) => (bus_name, None),
-                    },
-                    Err(_) => (bus_name, None),
-                }
+                let handle = Self::load_image_from_url(&url).await;
+                (bus_name, handle)
             },
             |(bus_name, handle)| {
                 cosmic::Action::App(Message::AlbumArtLoadedPlayer(bus_name, handle))
