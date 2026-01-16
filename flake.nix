@@ -104,7 +104,7 @@
           program = "${cosmic-music-player}/bin/cosmic-ext-applet-music-player";
         };
 
-        # Checks (clippy, tests, etc.)
+        # Checks (clippy, fmt)
         checks = {
           # Run clippy on the workspace
           workspace-clippy = craneLib.cargoClippy (commonArgs // {
@@ -113,19 +113,20 @@
             cargoClippyExtraArgs = "--all-targets -- --deny warnings";
           });
 
-          # Run tests
-          workspace-test = craneLib.cargoNextest (commonArgs // {
-            inherit cargoArtifacts;
-            cargoExtraArgs = "--manifest-path music-player/Cargo.toml";
-            partitions = 1;
-            partitionType = "count";
-          });
-
           # Check formatting
           workspace-fmt = craneLib.cargoFmt {
             src = ./.;
             cargoExtraArgs = "--manifest-path music-player/Cargo.toml";
           };
+
+          # Note: Tests are disabled as the project currently has no automated tests
+          # See CLAUDE.md for details. Uncomment when tests are added:
+          # workspace-test = craneLib.cargoNextest (commonArgs // {
+          #   inherit cargoArtifacts;
+          #   cargoExtraArgs = "--manifest-path music-player/Cargo.toml";
+          #   partitions = 1;
+          #   partitionType = "count";
+          # });
         };
       }
     );

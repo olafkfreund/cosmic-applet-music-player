@@ -315,7 +315,8 @@ fn view_settings_tab(app: &CosmicAppletMusic, _space_s: f32, space_m: f32) -> El
             "Choose which media player to control:",
         ));
     } else {
-        settings_content = settings_content.push(cosmic::widget::text::title4("Discovered Players"));
+        settings_content =
+            settings_content.push(cosmic::widget::text::title4("Discovered Players"));
     }
 
     // Only show player selection in single-player mode
@@ -543,13 +544,15 @@ fn view_player_card<'a>(
             cosmic::widget::row()
                 .spacing(space_s / 2.0)
                 .push(cosmic::widget::text::body(status_indicator))
-                .push(cosmic::widget::text::body(title).size(12))
+                .push(cosmic::widget::text::body(title).size(12)),
         )
         .push(cosmic::widget::text::caption(artist).size(10))
         .push(cosmic::widget::text::caption(&player.identity).size(9))
         .width(cosmic::iced::Length::Shrink);
 
-    info_row = info_row.push(title_column).align_y(cosmic::iced::Alignment::Center);
+    info_row = info_row
+        .push(title_column)
+        .align_y(cosmic::iced::Alignment::Center);
 
     let status_icon = match player.status {
         PlaybackStatus::Playing => "media-playback-pause-symbolic",
@@ -564,7 +567,7 @@ fn view_player_card<'a>(
         .spacing(space_s / 2.0)
         .push(
             cosmic::widget::button::icon(
-                cosmic::widget::icon::from_name("media-skip-backward-symbolic").size(16)
+                cosmic::widget::icon::from_name("media-skip-backward-symbolic").size(16),
             )
             .padding(4)
             .on_press({
@@ -573,18 +576,16 @@ fn view_player_card<'a>(
             }),
         )
         .push(
-            cosmic::widget::button::icon(
-                cosmic::widget::icon::from_name(status_icon).size(16)
-            )
-            .padding(4)
-            .on_press({
-                let bus_name = bus_name.clone();
-                Message::PlayPausePlayer(bus_name)
-            }),
+            cosmic::widget::button::icon(cosmic::widget::icon::from_name(status_icon).size(16))
+                .padding(4)
+                .on_press({
+                    let bus_name = bus_name.clone();
+                    Message::PlayPausePlayer(bus_name)
+                }),
         )
         .push(
             cosmic::widget::button::icon(
-                cosmic::widget::icon::from_name("media-skip-forward-symbolic").size(16)
+                cosmic::widget::icon::from_name("media-skip-forward-symbolic").size(16),
             )
             .padding(4)
             .on_press({

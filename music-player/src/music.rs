@@ -1,10 +1,10 @@
+use crate::audio::AudioController;
 use anyhow::Result;
 use mpris::{PlaybackStatus, Player, PlayerFinder};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::Arc;
-use crate::audio::AudioController;
 
 #[derive(Debug, Clone)]
 pub struct PlayerInfo {
@@ -268,9 +268,7 @@ impl MusicController {
 
         // Sort players by identity for stable ordering (alphabetical)
         // This prevents players from jumping around when status changes
-        players_info.sort_by(|a, b| {
-            a.identity.to_lowercase().cmp(&b.identity.to_lowercase())
-        });
+        players_info.sort_by(|a, b| a.identity.to_lowercase().cmp(&b.identity.to_lowercase()));
 
         players_info
     }
@@ -304,7 +302,7 @@ impl MusicController {
 
         if let Some(player) = all_players_borrow.get(bus_name) {
             // Try MPRIS first
-            if let Ok(_) = player.set_volume(volume) {
+            if player.set_volume(volume).is_ok() {
                 return Ok(());
             }
 
@@ -358,7 +356,7 @@ impl MusicController {
 
         if let Some(ref player) = *player_borrow {
             // Try MPRIS first
-            if let Ok(_) = player.set_volume(volume) {
+            if player.set_volume(volume).is_ok() {
                 return Ok(());
             }
 

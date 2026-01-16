@@ -78,7 +78,8 @@ impl AudioController {
                 if let Some(percent_pos) = line.find('%') {
                     let before_percent = &line[..percent_pos];
                     if let Some(last_space) = before_percent.rfind(' ') {
-                        if let Ok(percent) = before_percent[last_space + 1..].trim().parse::<f64>() {
+                        if let Ok(percent) = before_percent[last_space + 1..].trim().parse::<f64>()
+                        {
                             current_volume = percent / 100.0;
                         }
                     }

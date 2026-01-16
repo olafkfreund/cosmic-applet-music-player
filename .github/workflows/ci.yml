@@ -78,15 +78,17 @@ jobs:
           echo "Running clippy checks"
           nix build .#checks.${{ matrix.system }}.workspace-clippy --print-build-logs
 
-      - name: Run tests
-        run: |
-          echo "Running tests"
-          nix build .#checks.${{ matrix.system }}.workspace-test --print-build-logs
-
       - name: Check formatting
         run: |
           echo "Checking code formatting"
           nix build .#checks.${{ matrix.system }}.workspace-fmt --print-build-logs
+
+      # Note: Tests are disabled as the project currently has no automated tests
+      # Uncomment when tests are added:
+      # - name: Run tests
+      #   run: |
+      #     echo "Running tests"
+      #     nix build .#checks.${{ matrix.system }}.workspace-test --print-build-logs
 
   nix-flake-check:
     name: Nix Flake Check

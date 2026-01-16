@@ -1,12 +1,12 @@
 use crate::config::ConfigManager;
 use crate::music::{MusicController, PlayerInfo};
+use bytes::Bytes;
 use cosmic::app::{Core, Task};
 use cosmic::iced::platform_specific::shell::wayland::commands::popup::{destroy_popup, get_popup};
 use cosmic::iced::window::Id;
 use cosmic::iced::Limits;
 use cosmic::{Application, Element};
 use mpris::PlaybackStatus;
-use bytes::Bytes;
 
 mod subscription;
 mod view;
@@ -302,9 +302,7 @@ impl CosmicAppletMusic {
 
     fn handle_load_album_art(&mut self, url: String) -> Task<Message> {
         Task::perform(
-            async move {
-                Self::load_image_from_url(&url).await
-            },
+            async move { Self::load_image_from_url(&url).await },
             |result| cosmic::Action::App(Message::AlbumArtLoaded(result)),
         )
     }
@@ -327,7 +325,9 @@ impl CosmicAppletMusic {
                         return None;
                     }
                     eprintln!("Successfully loaded album art from file: {}", path);
-                    Some(cosmic::iced::widget::image::Handle::from_bytes(Bytes::from(bytes)))
+                    Some(cosmic::iced::widget::image::Handle::from_bytes(
+                        Bytes::from(bytes),
+                    ))
                 }
                 Err(e) => {
                     eprintln!("Failed to load album art from file {}: {}", path, e);
