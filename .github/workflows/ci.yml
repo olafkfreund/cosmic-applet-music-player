@@ -25,16 +25,8 @@ concurrency:
 
 jobs:
   nix-build:
-    name: Build on ${{ matrix.system }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - system: x86_64-linux
-            os: ubuntu-latest
-          - system: aarch64-linux
-            os: ubuntu-latest-arm64
+    name: Build on x86_64-linux
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
@@ -65,7 +57,7 @@ jobs:
 
       - name: Build package
         run: |
-          echo "Building cosmic-ext-applet-music-player for ${{ matrix.system }}"
+          echo "Building cosmic-ext-applet-music-player for x86_64-linux"
           nix build .#cosmic-ext-applet-music-player --print-build-logs --show-trace
 
       - name: Show package info
@@ -76,12 +68,12 @@ jobs:
       - name: Run clippy checks
         run: |
           echo "Running clippy checks"
-          nix build .#checks.${{ matrix.system }}.workspace-clippy --print-build-logs
+          nix build .#checks.x86_64-linux.workspace-clippy --print-build-logs
 
       - name: Check formatting
         run: |
           echo "Checking code formatting"
-          nix build .#checks.${{ matrix.system }}.workspace-fmt --print-build-logs
+          nix build .#checks.x86_64-linux.workspace-fmt --print-build-logs
 
       # Note: Tests are disabled as the project currently has no automated tests
       # Uncomment when tests are added:

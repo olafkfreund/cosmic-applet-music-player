@@ -12,9 +12,8 @@ This directory contains GitHub Actions workflows for automated building, testing
 - Manual workflow dispatch
 
 **What it does:**
-- ✅ Builds the package on multiple architectures (x86_64-linux, aarch64-linux)
+- ✅ Builds the package for x86_64-linux
 - ✅ Runs clippy lint checks
-- ✅ Executes test suite
 - ✅ Verifies code formatting
 - ✅ Validates the Nix flake
 - ✅ Builds the development shell
@@ -140,11 +139,10 @@ git push origin v1.0.0
 
 ## 🏗️ Architecture Details
 
-### Multi-Architecture Support
+### Supported Architecture
 
 The workflows build for:
 - **x86_64-linux**: Intel/AMD 64-bit (ubuntu-latest)
-- **aarch64-linux**: ARM 64-bit (ubuntu-latest-arm64)
 
 ### Caching Strategy
 
@@ -210,11 +208,6 @@ This ensures:
 - Check Nix flake for errors: `nix flake check`
 - Review build logs in Actions tab
 - Test locally: `nix build .#cosmic-ext-applet-music-player`
-
-**4. ARM64 builds failing**
-- Ensure `ubuntu-latest-arm64` runner is available
-- Check if ARM64-specific dependencies are satisfied
-- May need to adjust build configuration
 
 ### Debug Locally
 

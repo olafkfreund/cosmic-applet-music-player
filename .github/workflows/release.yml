@@ -13,16 +13,8 @@ on:
 
 jobs:
   build-release:
-    name: Build Release for ${{ matrix.system }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - system: x86_64-linux
-            os: ubuntu-latest
-          - system: aarch64-linux
-            os: ubuntu-latest-arm64
+    name: Build Release for x86_64-linux
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
@@ -60,7 +52,7 @@ jobs:
 
       - name: Build release package
         run: |
-          echo "Building release for ${{ matrix.system }}"
+          echo "Building release for x86_64-linux"
           nix build .#cosmic-ext-applet-music-player \
             --print-build-logs \
             --show-trace \
@@ -87,11 +79,11 @@ jobs:
       - name: Generate build metadata
         run: |
           mkdir -p dist
-          cat > dist/build-info-${{ matrix.system }}.txt <<EOF
+          cat > dist/build-info-x86_64-linux.txt <<EOF
           Build Information
           ==================
           Version: ${{ steps.version.outputs.version }}
-          System: ${{ matrix.system }}
+          System: x86_64-linux
           Commit: ${{ github.sha }}
           Built: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
 
@@ -105,10 +97,10 @@ jobs:
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: cosmic-applet-music-player-${{ steps.version.outputs.version }}-${{ matrix.system }}
+          name: cosmic-applet-music-player-${{ steps.version.outputs.version }}-x86_64-linux
           path: |
             result/
-            dist/build-info-${{ matrix.system }}.txt
+            dist/build-info-x86_64-linux.txt
           retention-days: 90
 
   create-github-release:

@@ -174,7 +174,7 @@ nix build github:olafkfreund/cosmic-applet-music-player --print-build-logs
 - ⚡ **Installation in seconds** instead of minutes (no compilation needed)
 - 💾 **Reduced disk space** (no intermediate build artifacts)
 - 🔄 **Always up-to-date** (pre-built for every commit to master)
-- 🏗️ **Multi-architecture** (x86_64-linux and aarch64-linux available)
+- 🏗️ **x86_64-linux** architecture pre-built and cached
 
 #### Installation Methods
 
