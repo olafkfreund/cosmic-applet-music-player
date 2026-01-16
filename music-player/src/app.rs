@@ -310,11 +310,22 @@ impl CosmicAppletMusic {
     }
 
     async fn load_image_from_url(url: &str) -> Option<cosmic::iced::widget::image::Handle> {
+        // Maximum image size to prevent memory exhaustion attacks
+        const MAX_IMAGE_SIZE: usize = 10 * 1024 * 1024; // 10MB
+
         // Handle file:// URLs (common for local album art)
         if url.starts_with("file://") {
             let path = url.trim_start_matches("file://");
             match tokio::fs::read(path).await {
                 Ok(bytes) => {
+                    if bytes.len() > MAX_IMAGE_SIZE {
+                        eprintln!(
+                            "Album art file too large: {} bytes (max: {} bytes)",
+                            bytes.len(),
+                            MAX_IMAGE_SIZE
+                        );
+                        return None;
+                    }
                     eprintln!("Successfully loaded album art from file: {}", path);
                     Some(cosmic::iced::widget::image::Handle::from_bytes(Bytes::from(bytes)))
                 }
@@ -329,6 +340,14 @@ impl CosmicAppletMusic {
             match reqwest::get(url).await {
                 Ok(response) => match response.bytes().await {
                     Ok(bytes) => {
+                        if bytes.len() > MAX_IMAGE_SIZE {
+                            eprintln!(
+                                "Album art download too large: {} bytes (max: {} bytes)",
+                                bytes.len(),
+                                MAX_IMAGE_SIZE
+                            );
+                            return None;
+                        }
                         eprintln!("Successfully loaded album art from URL: {}", url);
                         Some(cosmic::iced::widget::image::Handle::from_bytes(bytes))
                     }

@@ -2,6 +2,36 @@ use crate::app::{CosmicAppletMusic, Message, PopupTab};
 use cosmic::{theme, Element};
 use mpris::PlaybackStatus;
 
+/// Size in pixels for album art display (square)
+const ALBUM_ART_SIZE: f32 = 80.0;
+
+/// Creates a standardized container for album art with consistent sizing and styling.
+///
+/// This helper reduces code duplication across the three album art states:
+/// - Loaded artwork
+/// - Loading state
+/// - Fallback icon
+///
+/// # Arguments
+/// * `content` - The widget to display inside the container (image, icon, or loading indicator)
+///
+/// # Returns
+/// A configured Element containing the album art with:
+/// - Fixed 80x80 pixel dimensions
+/// - Centered content alignment
+/// - Card styling theme
+fn create_album_art_container<'a>(
+    content: impl Into<Element<'a, Message>>,
+) -> Element<'a, Message> {
+    cosmic::widget::container(content)
+        .width(cosmic::iced::Length::Fixed(ALBUM_ART_SIZE))
+        .height(cosmic::iced::Length::Fixed(ALBUM_ART_SIZE))
+        .align_x(cosmic::iced::alignment::Horizontal::Center)
+        .align_y(cosmic::iced::alignment::Vertical::Center)
+        .class(cosmic::theme::Container::Card)
+        .into()
+}
+
 pub fn view_window(app: &CosmicAppletMusic, _id: cosmic::iced::window::Id) -> Element<'_, Message> {
     let cosmic::cosmic_theme::Spacing {
         space_s, space_m, ..
@@ -57,6 +87,20 @@ pub fn view_window(app: &CosmicAppletMusic, _id: cosmic::iced::window::Id) -> El
         .into()
 }
 
+/// Renders the Controls tab content for the popup window.
+///
+/// Displays either:
+/// - Single-player mode: One player's info, album art, and controls
+/// - Multi-player mode: All active players with compact cards
+/// - No player state: Prompt to select a player in Settings
+///
+/// # Arguments
+/// * `app` - Application state containing player info and configuration
+/// * `space_s` - Small spacing value from theme
+/// * `space_m` - Medium spacing value from theme
+///
+/// # Returns
+/// An Element containing the Controls tab UI
 fn view_controls_tab(app: &CosmicAppletMusic, space_s: f32, space_m: f32) -> Element<'_, Message> {
     // Check if "show all players" mode is enabled
     let show_all_players = app
@@ -95,40 +139,30 @@ fn view_controls_tab(app: &CosmicAppletMusic, space_s: f32, space_m: f32) -> Ele
     }
 
     // Album cover
+    // Note: Using ContentFit::Contain instead of Cover ensures the entire image
+    // renders within the container while preserving aspect ratio.
+    // This fixes GitHub issue #1 where album art loaded but didn't render.
     let album_cover = if let Some(ref handle) = app.album_art_handle {
-        cosmic::widget::container(
+        create_album_art_container(
             cosmic::widget::image(handle.clone())
-                .width(cosmic::iced::Length::Fixed(80.0))
-                .height(cosmic::iced::Length::Fixed(80.0))
-                .content_fit(cosmic::iced::ContentFit::Cover),
+                .width(cosmic::iced::Length::Fill)
+                .height(cosmic::iced::Length::Fill)
+                .content_fit(cosmic::iced::ContentFit::Contain),
         )
-        .width(cosmic::iced::Length::Fixed(80.0))
-        .height(cosmic::iced::Length::Fixed(80.0))
-        .class(cosmic::theme::Container::Card)
     } else if app.player_info.art_url.is_some() {
         // Loading state
-        cosmic::widget::container(
+        create_album_art_container(
             cosmic::widget::column()
                 .push(cosmic::widget::icon::from_name("image-loading-symbolic").size(32))
                 .push(cosmic::widget::text::caption("Loading...").size(10))
                 .spacing(4)
                 .align_x(cosmic::iced::Alignment::Center),
         )
-        .width(cosmic::iced::Length::Fixed(80.0))
-        .height(cosmic::iced::Length::Fixed(80.0))
-        .align_x(cosmic::iced::alignment::Horizontal::Center)
-        .align_y(cosmic::iced::alignment::Vertical::Center)
-        .class(cosmic::theme::Container::Card)
     } else {
         // No art available
-        cosmic::widget::container(
+        create_album_art_container(
             cosmic::widget::icon::from_name("audio-headphones-symbolic").size(48),
         )
-        .width(cosmic::iced::Length::Fixed(80.0))
-        .height(cosmic::iced::Length::Fixed(80.0))
-        .align_x(cosmic::iced::alignment::Horizontal::Center)
-        .align_y(cosmic::iced::alignment::Vertical::Center)
-        .class(cosmic::theme::Container::Card)
     };
 
     let song_info = cosmic::widget::column()
@@ -194,6 +228,22 @@ fn view_controls_tab(app: &CosmicAppletMusic, space_s: f32, space_m: f32) -> Ele
         .into()
 }
 
+/// Renders the Settings tab content for the popup window.
+///
+/// Provides configuration options for:
+/// - Multi-player mode toggle (show all players simultaneously)
+/// - Hide inactive players option (when multi-player mode is on)
+/// - Auto-detect new players toggle
+/// - Manual player discovery button
+/// - Player selection (single-player mode only)
+///
+/// # Arguments
+/// * `app` - Application state containing configuration and discovered players
+/// * `_space_s` - Small spacing value (unused)
+/// * `space_m` - Medium spacing value from theme
+///
+/// # Returns
+/// A scrollable Element containing the Settings tab UI
 fn view_settings_tab(app: &CosmicAppletMusic, _space_s: f32, space_m: f32) -> Element<'_, Message> {
     // Get discovered players
     let discovered_players = app.music_controller.get_discovered_players();
@@ -343,6 +393,21 @@ fn view_settings_tab(app: &CosmicAppletMusic, _space_s: f32, space_m: f32) -> El
     cosmic::widget::scrollable(settings_content).into()
 }
 
+/// Renders all active media players in multi-player mode.
+///
+/// Displays a scrollable list of compact player cards, each showing:
+/// - Optional album artwork (48x48)
+/// - Player name, track, and artist
+/// - Playback controls (previous, play/pause, next)
+/// - Volume slider (if supported by player)
+///
+/// # Arguments
+/// * `app` - Application state containing all players info and album arts
+/// * `space_s` - Small spacing value from theme
+/// * `space_m` - Medium spacing value from theme
+///
+/// # Returns
+/// A scrollable Element containing player cards
 fn view_all_players(app: &CosmicAppletMusic, space_s: f32, space_m: f32) -> Element<'_, Message> {
     let hide_inactive = app
         .config_manager
@@ -393,13 +458,31 @@ fn view_all_players(app: &CosmicAppletMusic, space_s: f32, space_m: f32) -> Elem
         .into()
 }
 
+/// Renders a compact player card for multi-player mode.
+///
+/// Each card displays:
+/// - Album artwork (48x48) if available, or loading indicator
+/// - Status indicator emoji (▶/⏸/⏹)
+/// - Track title and artist (truncated to 25 chars)
+/// - Player identity
+/// - Playback control buttons
+/// - Volume slider (if player supports volume control)
+///
+/// # Arguments
+/// * `app` - Application state for accessing album art cache
+/// * `player` - Player information to display
+/// * `space_s` - Small spacing value from theme
+/// * `_space_m` - Medium spacing value (unused)
+///
+/// # Returns
+/// A styled container Element with all player controls
 fn view_player_card<'a>(
-    _app: &'a CosmicAppletMusic,
+    app: &'a CosmicAppletMusic,
     player: &'a crate::music::PlayerInfo,
     space_s: f32,
     _space_m: f32,
 ) -> Element<'a, Message> {
-    // Compact view: no album cover, just text and controls
+    // Compact view with optional album art
 
     // Truncate long titles/artists - use shorter length to ensure controls are always visible
     let max_length = 25;
@@ -414,6 +497,38 @@ fn view_player_card<'a>(
         player.artist.clone()
     };
 
+    // Compact album art (48x48) - only show if available
+    let mut info_row = cosmic::widget::row().spacing(space_s);
+
+    if let Some(handle) = app.player_album_arts.get(&player.bus_name) {
+        // Show compact album art
+        let compact_art = cosmic::widget::container(
+            cosmic::widget::image(handle.clone())
+                .width(cosmic::iced::Length::Fill)
+                .height(cosmic::iced::Length::Fill)
+                .content_fit(cosmic::iced::ContentFit::Contain),
+        )
+        .width(cosmic::iced::Length::Fixed(48.0))
+        .height(cosmic::iced::Length::Fixed(48.0))
+        .align_x(cosmic::iced::alignment::Horizontal::Center)
+        .align_y(cosmic::iced::alignment::Vertical::Center)
+        .class(cosmic::theme::Container::Card);
+
+        info_row = info_row.push(compact_art);
+    } else if player.art_url.is_some() {
+        // Show loading placeholder
+        let loading_art = cosmic::widget::container(
+            cosmic::widget::icon::from_name("image-loading-symbolic").size(24),
+        )
+        .width(cosmic::iced::Length::Fixed(48.0))
+        .height(cosmic::iced::Length::Fixed(48.0))
+        .align_x(cosmic::iced::alignment::Horizontal::Center)
+        .align_y(cosmic::iced::alignment::Vertical::Center)
+        .class(cosmic::theme::Container::Card);
+
+        info_row = info_row.push(loading_art);
+    }
+
     // Status indicator emoji
     let status_indicator = match player.status {
         PlaybackStatus::Playing => "▶",
@@ -421,20 +536,20 @@ fn view_player_card<'a>(
         PlaybackStatus::Stopped => "⏹",
     };
 
-    // Compact title row with status and identity
-    // Make the title column shrinkable to prioritize controls visibility
-    let title_row = cosmic::widget::row()
-        .spacing(space_s)
-        .push(cosmic::widget::text::body(status_indicator))
+    // Compact title column with status and identity
+    let title_column = cosmic::widget::column()
+        .spacing(2.0)
         .push(
-            cosmic::widget::column()
-                .spacing(2.0)
+            cosmic::widget::row()
+                .spacing(space_s / 2.0)
+                .push(cosmic::widget::text::body(status_indicator))
                 .push(cosmic::widget::text::body(title).size(12))
-                .push(cosmic::widget::text::caption(artist).size(10))
-                .push(cosmic::widget::text::caption(&player.identity).size(9))
-                .width(cosmic::iced::Length::Shrink)
         )
-        .align_y(cosmic::iced::Alignment::Center);
+        .push(cosmic::widget::text::caption(artist).size(10))
+        .push(cosmic::widget::text::caption(&player.identity).size(9))
+        .width(cosmic::iced::Length::Shrink);
+
+    info_row = info_row.push(title_column).align_y(cosmic::iced::Alignment::Center);
 
     let status_icon = match player.status {
         PlaybackStatus::Playing => "media-playback-pause-symbolic",
@@ -479,10 +594,10 @@ fn view_player_card<'a>(
         )
         .align_y(cosmic::iced::Alignment::Center);
 
-    // Controls row - title on left, buttons on right
+    // Controls row - info (art + text) on left, buttons on right
     let controls_row = cosmic::widget::row()
         .spacing(space_s)
-        .push(title_row)
+        .push(info_row)
         .push(cosmic::widget::horizontal_space())
         .push(controls)
         .align_y(cosmic::iced::Alignment::Center)
