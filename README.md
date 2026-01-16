@@ -1,5 +1,8 @@
 # Music Player Applet for the COSMIC™ Desktop
 
+[![CI](https://github.com/olafkfreund/cosmic-applet-music-player/workflows/CI/badge.svg)](https://github.com/olafkfreund/cosmic-applet-music-player/actions/workflows/ci.yml)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+
 A modern music player applet for the COSMIC™ desktop with MPRIS integration, providing seamless control of your music directly from the panel.
 
 ## Screenshots
@@ -87,6 +90,91 @@ This will build and install the latest development version directly from Git.
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
   ```
 - COSMIC desktop environment installed
+
+#### Using the Binary Cache (Recommended)
+
+To avoid building from source, configure the Cachix binary cache. This provides pre-built binaries and significantly speeds up installation:
+
+##### Option A: NixOS Configuration (Flakes)
+
+Add the binary cache to your NixOS configuration:
+
+```nix
+# In your flake.nix or configuration.nix
+{
+  nix.settings = {
+    substituters = [
+      "https://cosmic-applet-music-player.cachix.org"
+    ];
+    trusted-public-keys = [
+      "cosmic-applet-music-player.cachix.org-1:ZiUK+3qX/MURFvSA3iBPiKjHpDglK5YNUBDRQMsoOss="
+    ];
+  };
+}
+```
+
+##### Option B: NixOS Configuration (Non-Flakes)
+
+For traditional NixOS configurations (without flakes):
+
+```nix
+# In your /etc/nixos/configuration.nix
+{
+  nix.binaryCaches = [
+    "https://cosmic-applet-music-player.cachix.org"
+  ];
+  nix.binaryCachePublicKeys = [
+    "cosmic-applet-music-player.cachix.org-1:ZiUK+3qX/MURFvSA3iBPiKjHpDglK5YNUBDRQMsoOss="
+  ];
+}
+```
+
+##### Option C: Using Cachix CLI
+
+If you have the Cachix CLI installed:
+
+```bash
+# One-time setup
+cachix use cosmic-applet-music-player
+```
+
+This automatically adds the cache to your Nix configuration.
+
+##### Option D: Manual Nix Configuration
+
+For user-level configuration without NixOS system changes:
+
+```bash
+# Add to ~/.config/nix/nix.conf
+mkdir -p ~/.config/nix
+cat >> ~/.config/nix/nix.conf <<EOF
+substituters = https://cache.nixos.org https://cosmic-applet-music-player.cachix.org
+trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= cosmic-applet-music-player.cachix.org-1:ZiUK+3qX/MURFvSA3iBPiKjHpDglK5YNUBDRQMsoOss=
+EOF
+```
+
+##### Verifying Binary Cache Access
+
+After configuration, verify the cache is accessible:
+
+```bash
+# Test cache access
+nix-store --store https://cosmic-applet-music-player.cachix.org --ls /
+
+# Check if the package is cached (after first build)
+nix path-info --store https://cosmic-applet-music-player.cachix.org \
+  github:olafkfreund/cosmic-applet-music-player#cosmic-ext-applet-music-player
+
+# Build should use the cache
+nix build github:olafkfreund/cosmic-applet-music-player --print-build-logs
+# Look for "copying path... from 'https://cosmic-applet-music-player.cachix.org'"
+```
+
+**Benefits of using the binary cache:**
+- ⚡ **Installation in seconds** instead of minutes (no compilation needed)
+- 💾 **Reduced disk space** (no intermediate build artifacts)
+- 🔄 **Always up-to-date** (pre-built for every commit to master)
+- 🏗️ **Multi-architecture** (x86_64-linux and aarch64-linux available)
 
 #### Installation Methods
 
