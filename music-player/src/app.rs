@@ -171,15 +171,15 @@ impl CosmicAppletMusic {
         if let Some(p) = self.popup.take() {
             destroy_popup(p)
         } else {
+            let Some(main_id) = self.core.main_window_id() else {
+                return Task::none();
+            };
             let new_id = Id::unique();
             self.popup.replace(new_id);
-            let mut popup_settings = self.core.applet.get_popup_settings(
-                self.core.main_window_id().unwrap(),
-                new_id,
-                None,
-                None,
-                None,
-            );
+            let mut popup_settings = self
+                .core
+                .applet
+                .get_popup_settings(main_id, new_id, None, None, None);
             popup_settings.positioner.size_limits = Limits::NONE
                 .max_width(400.0)
                 .min_width(300.0)
@@ -204,7 +204,9 @@ impl CosmicAppletMusic {
     }
 
     fn handle_play_pause(&self) -> Task<Message> {
-        let _ = self.music_controller.play_pause();
+        if let Err(e) = self.music_controller.play_pause() {
+            eprintln!("Failed to toggle play/pause: {e}");
+        }
 
         // Immediately toggle the UI status for responsive feedback
         let new_status = match self.player_info.status {
@@ -219,12 +221,16 @@ impl CosmicAppletMusic {
     }
 
     fn handle_next(&self) -> Task<Message> {
-        let _ = self.music_controller.next();
+        if let Err(e) = self.music_controller.next() {
+            eprintln!("Failed to skip to next track: {e}");
+        }
         Task::done(cosmic::Action::App(Message::FindPlayer))
     }
 
     fn handle_previous(&self) -> Task<Message> {
-        let _ = self.music_controller.previous();
+        if let Err(e) = self.music_controller.previous() {
+            eprintln!("Failed to skip to previous track: {e}");
+        }
         Task::done(cosmic::Action::App(Message::FindPlayer))
     }
 
@@ -262,7 +268,9 @@ impl CosmicAppletMusic {
 
         if show_all_players {
             // In multi-player mode, update all players
-            let _ = self.music_controller.discover_all_players();
+            if let Err(e) = self.music_controller.discover_all_players() {
+                eprintln!("Failed to discover players: {e}");
+            }
             let all_players = self.music_controller.get_all_players_info();
             return Task::done(cosmic::Action::App(Message::UpdateAllPlayersInfo(
                 all_players,
@@ -273,13 +281,17 @@ impl CosmicAppletMusic {
         if let Some(ref config) = self.config_manager {
             // Use new selected player approach
             if let Some(selected_player) = config.get_selected_player() {
-                let _ = self.music_controller.find_specific_player(&selected_player);
+                if let Err(e) = self.music_controller.find_specific_player(&selected_player) {
+                    eprintln!("Failed to find player '{selected_player}': {e}");
+                }
             } else {
                 // No player selected - try to find any active player for backward compatibility
-                let _ = self.music_controller.find_active_player();
+                if let Err(e) = self.music_controller.find_active_player() {
+                    eprintln!("Failed to find active player: {e}");
+                }
             }
-        } else {
-            let _ = self.music_controller.find_active_player();
+        } else if let Err(e) = self.music_controller.find_active_player() {
+            eprintln!("Failed to find active player: {e}");
         }
         let info = self.music_controller.get_player_info();
         Task::done(cosmic::Action::App(Message::UpdatePlayerInfo(info)))
@@ -291,7 +303,9 @@ impl CosmicAppletMusic {
     }
 
     fn handle_volume_changed(&mut self, volume: f64) -> Task<Message> {
-        let _ = self.music_controller.set_volume(volume);
+        if let Err(e) = self.music_controller.set_volume(volume) {
+            eprintln!("Failed to set volume: {e}");
+        }
         self.player_info.volume = volume;
         Task::none()
     }
@@ -422,13 +436,17 @@ impl CosmicAppletMusic {
     }
 
     fn handle_discover_players(&mut self) -> Task<Message> {
-        let _ = self.music_controller.discover_all_players();
+        if let Err(e) = self.music_controller.discover_all_players() {
+            eprintln!("Failed to discover players: {e}");
+        }
 
         // Auto-add discovered players to config if auto-detect is enabled
         if let Some(ref mut config) = self.config_manager {
             let discovered = self.music_controller.get_discovered_players();
             for player in discovered {
-                let _ = config.add_discovered_player(player.identity);
+                if let Err(e) = config.add_discovered_player(player.identity) {
+                    eprintln!("Failed to save discovered player: {e}");
+                }
             }
         }
 
@@ -437,14 +455,18 @@ impl CosmicAppletMusic {
 
     fn handle_toggle_auto_detect(&mut self, enabled: bool) -> Task<Message> {
         if let Some(ref mut config) = self.config_manager {
-            let _ = config.set_auto_detect_new_players(enabled);
+            if let Err(e) = config.set_auto_detect_new_players(enabled) {
+                eprintln!("Failed to save auto-detect setting: {e}");
+            }
         }
         Task::none()
     }
 
     fn handle_select_player(&mut self, player: Option<String>) -> Task<Message> {
         if let Some(ref mut config) = self.config_manager {
-            let _ = config.set_selected_player(player);
+            if let Err(e) = config.set_selected_player(player) {
+                eprintln!("Failed to save selected player: {e}");
+            }
         }
         Task::done(cosmic::Action::App(Message::FindPlayer))
     }
@@ -452,6 +474,12 @@ impl CosmicAppletMusic {
     fn handle_update_all_players_info(&mut self, players_info: Vec<PlayerInfo>) -> Task<Message> {
         // Update the list of all players
         self.all_players_info.clone_from(&players_info);
+
+        // Prune stale album art entries for players that no longer exist
+        let active_bus_names: std::collections::HashSet<&str> =
+            players_info.iter().map(|p| p.bus_name.as_str()).collect();
+        self.player_album_arts
+            .retain(|bus_name, _| active_bus_names.contains(bus_name.as_str()));
 
         // Load album arts for new players
         let mut tasks = Vec::new();
@@ -471,7 +499,9 @@ impl CosmicAppletMusic {
     }
 
     fn handle_play_pause_player(&mut self, bus_name: &str) -> Task<Message> {
-        let _ = self.music_controller.play_pause_player(bus_name);
+        if let Err(e) = self.music_controller.play_pause_player(bus_name) {
+            eprintln!("Failed to toggle play/pause for player '{bus_name}': {e}");
+        }
 
         // Update the player info
         Task::batch([
@@ -483,7 +513,9 @@ impl CosmicAppletMusic {
     }
 
     fn handle_next_player(&mut self, bus_name: &str) -> Task<Message> {
-        let _ = self.music_controller.next_player(bus_name);
+        if let Err(e) = self.music_controller.next_player(bus_name) {
+            eprintln!("Failed to skip next for player '{bus_name}': {e}");
+        }
         Task::batch([
             Task::done(cosmic::Action::App(Message::DiscoverPlayers)),
             Task::done(cosmic::Action::App(Message::UpdateAllPlayersInfo(
@@ -493,7 +525,9 @@ impl CosmicAppletMusic {
     }
 
     fn handle_previous_player(&mut self, bus_name: &str) -> Task<Message> {
-        let _ = self.music_controller.previous_player(bus_name);
+        if let Err(e) = self.music_controller.previous_player(bus_name) {
+            eprintln!("Failed to skip previous for player '{bus_name}': {e}");
+        }
         Task::batch([
             Task::done(cosmic::Action::App(Message::DiscoverPlayers)),
             Task::done(cosmic::Action::App(Message::UpdateAllPlayersInfo(
@@ -503,7 +537,9 @@ impl CosmicAppletMusic {
     }
 
     fn handle_volume_changed_player(&mut self, bus_name: &str, volume: f64) -> Task<Message> {
-        let _ = self.music_controller.set_volume_player(bus_name, volume);
+        if let Err(e) = self.music_controller.set_volume_player(bus_name, volume) {
+            eprintln!("Failed to set volume for player '{bus_name}': {e}");
+        }
 
         // Update the player info in the list
         if let Some(player) = self
@@ -543,7 +579,9 @@ impl CosmicAppletMusic {
 
     fn handle_toggle_show_all_players(&mut self, enabled: bool) -> Task<Message> {
         if let Some(ref mut config) = self.config_manager {
-            let _ = config.set_show_all_players(enabled);
+            if let Err(e) = config.set_show_all_players(enabled) {
+                eprintln!("Failed to save show-all-players setting: {e}");
+            }
         }
 
         // If enabling, discover and update all players
@@ -561,7 +599,9 @@ impl CosmicAppletMusic {
 
     fn handle_toggle_hide_inactive(&mut self, enabled: bool) -> Task<Message> {
         if let Some(ref mut config) = self.config_manager {
-            let _ = config.set_hide_inactive_players(enabled);
+            if let Err(e) = config.set_hide_inactive_players(enabled) {
+                eprintln!("Failed to save hide-inactive setting: {e}");
+            }
         }
         Task::none()
     }

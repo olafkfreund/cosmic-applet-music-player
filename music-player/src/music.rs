@@ -175,7 +175,9 @@ impl MusicController {
 
         // Refresh audio sinks before extracting info
         if let Some(ref audio_ctrl) = self.audio_controller {
-            let _ = audio_ctrl.refresh_sink_inputs();
+            if let Err(e) = audio_ctrl.refresh_sink_inputs() {
+                eprintln!("Failed to refresh audio sink inputs: {e}");
+            }
         }
 
         let bus_name = player.bus_name_player_name_part().to_string();
@@ -189,7 +191,9 @@ impl MusicController {
 
         // Refresh audio controller sink inputs once before iterating
         if let Some(ref audio_ctrl) = self.audio_controller {
-            let _ = audio_ctrl.refresh_sink_inputs();
+            if let Err(e) = audio_ctrl.refresh_sink_inputs() {
+                eprintln!("Failed to refresh audio sink inputs: {e}");
+            }
         }
 
         for (bus_name, player) in all_players_borrow.iter() {
@@ -233,7 +237,9 @@ impl MusicController {
         // If MPRIS fails, try audio controller (for browsers)
         if let Some(ref audio_ctrl) = self.audio_controller {
             let identity = player.identity();
-            let _ = audio_ctrl.refresh_sink_inputs();
+            if let Err(e) = audio_ctrl.refresh_sink_inputs() {
+                eprintln!("Failed to refresh audio sink inputs: {e}");
+            }
             if let Some(sink_input) = audio_ctrl.find_sink_input_by_name(identity) {
                 audio_ctrl.set_sink_input_volume(sink_input.index, volume)?;
             }

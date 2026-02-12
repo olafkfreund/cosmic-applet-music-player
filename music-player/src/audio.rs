@@ -33,7 +33,10 @@ impl AudioController {
         }
 
         let output_str = String::from_utf8_lossy(&output.stdout);
-        let mut sink_inputs = self.sink_inputs.lock().unwrap();
+        let mut sink_inputs = self
+            .sink_inputs
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         sink_inputs.clear();
 
         let mut current_index: Option<u32> = None;
@@ -98,7 +101,10 @@ impl AudioController {
     }
 
     pub fn find_sink_input_by_name(&self, app_name_pattern: &str) -> Option<AudioSinkInput> {
-        let sink_inputs = self.sink_inputs.lock().unwrap();
+        let sink_inputs = self
+            .sink_inputs
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
 
         let pattern_lower = app_name_pattern.to_lowercase();
 
