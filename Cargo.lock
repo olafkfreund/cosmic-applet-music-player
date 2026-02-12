@@ -1178,6 +1178,7 @@ dependencies = [
  "anyhow",
  "bytes",
  "chrono",
+ "dirs",
  "futures",
  "image",
  "libcosmic",

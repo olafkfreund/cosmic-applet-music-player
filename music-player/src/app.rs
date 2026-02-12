@@ -308,63 +308,114 @@ impl CosmicAppletMusic {
     }
 
     async fn load_image_from_url(url: &str) -> Option<cosmic::iced::widget::image::Handle> {
+        use std::sync::OnceLock;
+        use std::time::Duration;
+
         // Maximum image size to prevent memory exhaustion attacks
         const MAX_IMAGE_SIZE: usize = 10 * 1024 * 1024; // 10MB
 
-        // Handle file:// URLs (common for local album art)
+        // Reusable HTTP client with timeout and redirect limits
+        static HTTP_CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
+
+        // Handle file:// URLs (common for local album art from players like VLC, Lollypop)
         if url.starts_with("file://") {
-            let path = url.trim_start_matches("file://");
-            match tokio::fs::read(path).await {
+            let raw_path = url.trim_start_matches("file://");
+
+            // Canonicalize to resolve symlinks and ".." traversal
+            let canonical = match tokio::fs::canonicalize(raw_path).await {
+                Ok(p) => p,
+                Err(e) => {
+                    eprintln!("Album art file not found: {e}");
+                    return None;
+                }
+            };
+
+            // Only allow reads from known-safe directories to prevent
+            // arbitrary local file disclosure via malicious MPRIS metadata
+            let allowed = Self::is_safe_album_art_path(&canonical);
+            if !allowed {
+                eprintln!("Album art path rejected: outside allowed directories");
+                return None;
+            }
+
+            match tokio::fs::read(&canonical).await {
                 Ok(bytes) => {
                     if bytes.len() > MAX_IMAGE_SIZE {
-                        eprintln!(
-                            "Album art file too large: {} bytes (max: {} bytes)",
-                            bytes.len(),
-                            MAX_IMAGE_SIZE
-                        );
+                        eprintln!("Album art file too large: {} bytes", bytes.len());
                         return None;
                     }
-                    eprintln!("Successfully loaded album art from file: {}", path);
                     Some(cosmic::iced::widget::image::Handle::from_bytes(
                         Bytes::from(bytes),
                     ))
                 }
                 Err(e) => {
-                    eprintln!("Failed to load album art from file {}: {}", path, e);
+                    eprintln!("Failed to load album art file: {e}");
                     None
                 }
             }
         }
         // Handle HTTP/HTTPS URLs
         else if url.starts_with("http://") || url.starts_with("https://") {
-            match reqwest::get(url).await {
+            let client = HTTP_CLIENT.get_or_init(|| {
+                reqwest::Client::builder()
+                    .timeout(Duration::from_secs(10))
+                    .connect_timeout(Duration::from_secs(5))
+                    .redirect(reqwest::redirect::Policy::limited(3))
+                    .build()
+                    .unwrap_or_else(|_| reqwest::Client::new())
+            });
+
+            match client.get(url).send().await {
                 Ok(response) => match response.bytes().await {
                     Ok(bytes) => {
                         if bytes.len() > MAX_IMAGE_SIZE {
-                            eprintln!(
-                                "Album art download too large: {} bytes (max: {} bytes)",
-                                bytes.len(),
-                                MAX_IMAGE_SIZE
-                            );
+                            eprintln!("Album art download too large: {} bytes", bytes.len());
                             return None;
                         }
-                        eprintln!("Successfully loaded album art from URL: {}", url);
                         Some(cosmic::iced::widget::image::Handle::from_bytes(bytes))
                     }
                     Err(e) => {
-                        eprintln!("Failed to fetch album art bytes: {}", e);
+                        eprintln!("Failed to read album art response: {e}");
                         None
                     }
                 },
                 Err(e) => {
-                    eprintln!("Failed to fetch album art from {}: {}", url, e);
+                    eprintln!("Failed to fetch album art: {e}");
                     None
                 }
             }
         } else {
-            eprintln!("Unsupported album art URL format: {}", url);
+            eprintln!("Unsupported album art URL scheme");
             None
         }
+    }
+
+    /// Returns true if the path is in a directory considered safe for album art reads.
+    /// Blocks access to sensitive locations like /etc, /proc, ~/.ssh, etc.
+    fn is_safe_album_art_path(path: &std::path::Path) -> bool {
+        // Safe prefixes: user cache/data dirs, /tmp, common media locations
+        let safe_prefixes: Vec<std::path::PathBuf> = vec![
+            // XDG directories (covers ~/.cache, ~/.local/share, etc.)
+            dirs::cache_dir(),
+            dirs::data_dir(),
+            dirs::data_local_dir(),
+            dirs::runtime_dir(),
+            // Common music/media directories
+            dirs::audio_dir(),
+            dirs::picture_dir(),
+            dirs::home_dir().map(|h| h.join("Music")),
+            dirs::home_dir().map(|h| h.join(".music")),
+            // System temp
+            Some(std::path::PathBuf::from("/tmp")),
+            Some(std::path::PathBuf::from("/var/tmp")),
+        ]
+        .into_iter()
+        .flatten()
+        .collect();
+
+        safe_prefixes
+            .iter()
+            .any(|prefix| path.starts_with(prefix))
     }
 
     fn handle_album_art_loaded(

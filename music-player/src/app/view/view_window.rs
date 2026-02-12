@@ -485,15 +485,18 @@ fn view_player_card<'a>(
 ) -> Element<'a, Message> {
     // Compact view with optional album art
 
-    // Truncate long titles/artists - use shorter length to ensure controls are always visible
+    // Truncate long titles/artists - use char count (not byte count) to avoid
+    // panicking on multi-byte UTF-8 characters like CJK, emoji, or accented text
     let max_length = 25;
-    let title = if player.title.len() > max_length {
-        format!("{}...", &player.title[0..max_length])
+    let title = if player.title.chars().count() > max_length {
+        let truncated: String = player.title.chars().take(max_length).collect();
+        format!("{truncated}...")
     } else {
         player.title.clone()
     };
-    let artist = if player.artist.len() > max_length {
-        format!("{}...", &player.artist[0..max_length])
+    let artist = if player.artist.chars().count() > max_length {
+        let truncated: String = player.artist.chars().take(max_length).collect();
+        format!("{truncated}...")
     } else {
         player.artist.clone()
     };
