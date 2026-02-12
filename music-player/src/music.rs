@@ -137,13 +137,9 @@ impl MusicController {
         self.discovered_players.borrow().values().cloned().collect()
     }
 
-    pub fn get_player_info(&self) -> PlayerInfo {
-        let player_borrow = self.player.borrow();
-
-        let Some(ref player) = *player_borrow else {
-            return PlayerInfo::default();
-        };
-
+    /// Extract player info from an MPRIS player, resolving volume via audio
+    /// controller fallback for browsers that don't support MPRIS volume.
+    fn extract_player_info(&self, player: &Player, bus_name: String) -> PlayerInfo {
         let metadata = player.get_metadata().unwrap_or_default();
         let status = player
             .get_playback_status()
@@ -152,29 +148,21 @@ impl MusicController {
 
         let title = metadata
             .title()
-            .map(|s| s.to_string())
-            .unwrap_or_else(|| "Unknown".to_string());
+            .map_or_else(|| "Unknown".to_string(), ToString::to_string);
 
         let artist = metadata
             .artists()
-            .map(|artists| artists.join(", "))
-            .unwrap_or_else(|| "Unknown Artist".to_string());
+            .map_or_else(|| "Unknown Artist".to_string(), |a| a.join(", "));
 
-        let art_url = metadata.art_url().map(|url| url.to_string());
-        let bus_name = player.bus_name_player_name_part().to_string();
+        let art_url = metadata.art_url().map(ToString::to_string);
         let identity = player.identity().to_string();
 
-        // For browsers, get actual volume from PulseAudio
+        // For browsers, get actual volume from PulseAudio/PipeWire
         if let Some(ref audio_ctrl) = self.audio_controller {
-            let _ = audio_ctrl.refresh_sink_inputs();
             if let Some(sink_input) = audio_ctrl.find_sink_input_by_name(&identity) {
                 volume = sink_input.volume;
             }
         }
-
-        // Volume control is now supported for all players
-        // MPRIS-supporting players use MPRIS, browsers use PulseAudio/PipeWire fallback
-        let can_control_volume = true;
 
         PlayerInfo {
             title,
@@ -184,8 +172,24 @@ impl MusicController {
             art_url,
             bus_name,
             identity,
-            can_control_volume,
+            can_control_volume: true,
         }
+    }
+
+    pub fn get_player_info(&self) -> PlayerInfo {
+        let player_borrow = self.player.borrow();
+
+        let Some(ref player) = *player_borrow else {
+            return PlayerInfo::default();
+        };
+
+        // Refresh audio sinks before extracting info
+        if let Some(ref audio_ctrl) = self.audio_controller {
+            let _ = audio_ctrl.refresh_sink_inputs();
+        }
+
+        let bus_name = player.bus_name_player_name_part().to_string();
+        self.extract_player_info(player, bus_name)
     }
 
     pub fn get_all_players_info(&self) -> Vec<PlayerInfo> {
@@ -193,74 +197,30 @@ impl MusicController {
         let mut players_info: Vec<PlayerInfo> = Vec::new();
         let mut firefox_players: Vec<PlayerInfo> = Vec::new();
 
-        // Refresh audio controller sink inputs if available
+        // Refresh audio controller sink inputs once before iterating
         if let Some(ref audio_ctrl) = self.audio_controller {
             let _ = audio_ctrl.refresh_sink_inputs();
         }
 
         for (bus_name, player) in all_players_borrow.iter() {
-            let metadata = player.get_metadata().unwrap_or_default();
-            let status = player
-                .get_playback_status()
-                .unwrap_or(PlaybackStatus::Stopped);
-            let mut volume = player.get_volume().unwrap_or(0.5);
-
-            let title = metadata
-                .title()
-                .map(|s| s.to_string())
-                .unwrap_or_else(|| "Unknown".to_string());
-
-            let artist = metadata
-                .artists()
-                .map(|artists| artists.join(", "))
-                .unwrap_or_else(|| "Unknown Artist".to_string());
-
-            let art_url = metadata.art_url().map(|url| url.to_string());
-            let identity = player.identity().to_string();
-
-            // For browsers, get actual volume from PulseAudio
-            if let Some(ref audio_ctrl) = self.audio_controller {
-                if let Some(sink_input) = audio_ctrl.find_sink_input_by_name(&identity) {
-                    volume = sink_input.volume;
-                }
-            }
-
-            // Volume control is now supported for all players
-            // MPRIS-supporting players use MPRIS, browsers use PulseAudio/PipeWire fallback
-            let can_control_volume = true;
-
-            let player_info = PlayerInfo {
-                title,
-                artist,
-                status,
-                volume,
-                art_url,
-                bus_name: bus_name.clone(),
-                identity: identity.clone(),
-                can_control_volume,
-            };
+            let info = self.extract_player_info(player, bus_name.clone());
 
             // Separate Firefox players for deduplication
-            if identity.to_lowercase().contains("firefox") {
-                firefox_players.push(player_info);
+            if info.identity.to_lowercase().contains("firefox") {
+                firefox_players.push(info);
             } else {
-                players_info.push(player_info);
+                players_info.push(info);
             }
         }
 
         // Deduplicate Firefox: keep only the most relevant one (Playing > Paused > Stopped)
         if !firefox_players.is_empty() {
-            // Sort Firefox players by status priority
-            firefox_players.sort_by(|a, b| {
-                let status_order = |status: &PlaybackStatus| match status {
-                    PlaybackStatus::Playing => 0,
-                    PlaybackStatus::Paused => 1,
-                    PlaybackStatus::Stopped => 2,
-                };
-                status_order(&a.status).cmp(&status_order(&b.status))
+            firefox_players.sort_by_key(|p| match p.status {
+                PlaybackStatus::Playing => 0,
+                PlaybackStatus::Paused => 1,
+                PlaybackStatus::Stopped => 2,
             });
 
-            // Take the first one (most relevant)
             if let Some(firefox_player) = firefox_players.into_iter().next() {
                 players_info.push(firefox_player);
             }
@@ -272,6 +232,61 @@ impl MusicController {
 
         players_info
     }
+
+    /// Set volume on a player, trying MPRIS first, then audio controller fallback.
+    fn set_volume_on_player(&self, player: &Player, volume: f64) -> Result<()> {
+        // Try MPRIS first
+        if player.set_volume(volume).is_ok() {
+            return Ok(());
+        }
+
+        // If MPRIS fails, try audio controller (for browsers)
+        if let Some(ref audio_ctrl) = self.audio_controller {
+            let identity = player.identity();
+            let _ = audio_ctrl.refresh_sink_inputs();
+            if let Some(sink_input) = audio_ctrl.find_sink_input_by_name(identity) {
+                audio_ctrl.set_sink_input_volume(sink_input.index, volume)?;
+            }
+        }
+
+        Ok(())
+    }
+
+    // --- Single-player controls (operate on self.player) ---
+
+    pub fn play_pause(&self) -> Result<()> {
+        let player_borrow = self.player.borrow();
+        if let Some(ref player) = *player_borrow {
+            player.play_pause()?;
+        }
+        Ok(())
+    }
+
+    pub fn next(&self) -> Result<()> {
+        let player_borrow = self.player.borrow();
+        if let Some(ref player) = *player_borrow {
+            player.next()?;
+        }
+        Ok(())
+    }
+
+    pub fn previous(&self) -> Result<()> {
+        let player_borrow = self.player.borrow();
+        if let Some(ref player) = *player_borrow {
+            player.previous()?;
+        }
+        Ok(())
+    }
+
+    pub fn set_volume(&self, volume: f64) -> Result<()> {
+        let player_borrow = self.player.borrow();
+        if let Some(ref player) = *player_borrow {
+            self.set_volume_on_player(player, volume)?;
+        }
+        Ok(())
+    }
+
+    // --- Multi-player controls (operate on self.all_players by bus_name) ---
 
     pub fn play_pause_player(&self, bus_name: &str) -> Result<()> {
         let all_players_borrow = self.all_players.borrow();
@@ -299,82 +314,9 @@ impl MusicController {
 
     pub fn set_volume_player(&self, bus_name: &str, volume: f64) -> Result<()> {
         let all_players_borrow = self.all_players.borrow();
-
         if let Some(player) = all_players_borrow.get(bus_name) {
-            // Try MPRIS first
-            if player.set_volume(volume).is_ok() {
-                return Ok(());
-            }
-
-            // If MPRIS fails, try audio controller (for browsers)
-            if let Some(ref audio_ctrl) = self.audio_controller {
-                let identity = player.identity();
-
-                // First refresh to get current sink inputs
-                let _ = audio_ctrl.refresh_sink_inputs();
-
-                // Try to find matching audio stream
-                if let Some(sink_input) = audio_ctrl.find_sink_input_by_name(identity) {
-                    audio_ctrl.set_sink_input_volume(sink_input.index, volume)?;
-                    return Ok(());
-                }
-            }
+            self.set_volume_on_player(player, volume)?;
         }
-
-        Ok(())
-    }
-
-    pub fn play_pause(&self) -> Result<()> {
-        let player_borrow = self.player.borrow();
-
-        if let Some(ref player) = *player_borrow {
-            player.play_pause()?;
-        }
-        Ok(())
-    }
-
-    pub fn next(&self) -> Result<()> {
-        let player_borrow = self.player.borrow();
-
-        if let Some(ref player) = *player_borrow {
-            player.next()?;
-        }
-        Ok(())
-    }
-
-    pub fn previous(&self) -> Result<()> {
-        let player_borrow = self.player.borrow();
-
-        if let Some(ref player) = *player_borrow {
-            player.previous()?;
-        }
-        Ok(())
-    }
-
-    pub fn set_volume(&self, volume: f64) -> Result<()> {
-        let player_borrow = self.player.borrow();
-
-        if let Some(ref player) = *player_borrow {
-            // Try MPRIS first
-            if player.set_volume(volume).is_ok() {
-                return Ok(());
-            }
-
-            // If MPRIS fails, try audio controller (for browsers)
-            if let Some(ref audio_ctrl) = self.audio_controller {
-                let identity = player.identity();
-
-                // First refresh to get current sink inputs
-                let _ = audio_ctrl.refresh_sink_inputs();
-
-                // Try to find matching audio stream
-                if let Some(sink_input) = audio_ctrl.find_sink_input_by_name(identity) {
-                    audio_ctrl.set_sink_input_volume(sink_input.index, volume)?;
-                    return Ok(());
-                }
-            }
-        }
-
         Ok(())
     }
 }
