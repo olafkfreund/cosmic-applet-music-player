@@ -1,4 +1,6 @@
 use crate::app::{CosmicAppletMusic, Message};
+use crate::config::ConfigManager;
+use cosmic::iced::mouse;
 use cosmic::widget::Id;
 use cosmic::Element;
 use mpris::PlaybackStatus;
@@ -27,8 +29,7 @@ pub fn view(app: &CosmicAppletMusic) -> Element<'_, Message> {
     let show_all_players = app
         .config_manager
         .as_ref()
-        .map(|config| config.get_show_all_players())
-        .unwrap_or(false);
+        .is_some_and(ConfigManager::get_show_all_players);
 
     let icon = if show_all_players {
         // In multi-player mode, check if ANY player is playing
@@ -45,13 +46,10 @@ pub fn view(app: &CosmicAppletMusic) -> Element<'_, Message> {
     } else {
         // Single-player mode
         match app.player_info.status {
-            PlaybackStatus::Playing => AppIcon::Paused, // Show pause when playing
-            PlaybackStatus::Paused => AppIcon::Playing, // Show play when paused
-            PlaybackStatus::Stopped => AppIcon::Playing, // Show play when stopped
+            PlaybackStatus::Playing => AppIcon::Paused,
+            PlaybackStatus::Paused | PlaybackStatus::Stopped => AppIcon::Playing,
         }
     };
-
-    use cosmic::iced::mouse;
 
     cosmic::widget::autosize::autosize(
         cosmic::widget::mouse_area(
@@ -61,14 +59,7 @@ pub fn view(app: &CosmicAppletMusic) -> Element<'_, Message> {
                 .on_press_down(Message::TogglePopup),
         )
         .on_scroll(|delta| match delta {
-            mouse::ScrollDelta::Lines { y, .. } => {
-                if y > 0.0 {
-                    Message::ScrollUp
-                } else {
-                    Message::ScrollDown
-                }
-            }
-            mouse::ScrollDelta::Pixels { y, .. } => {
+            mouse::ScrollDelta::Lines { y, .. } | mouse::ScrollDelta::Pixels { y, .. } => {
                 if y > 0.0 {
                     Message::ScrollUp
                 } else {

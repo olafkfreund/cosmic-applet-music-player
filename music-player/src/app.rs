@@ -131,26 +131,23 @@ impl Application for CosmicAppletMusic {
             Message::TogglePopup => self.handle_toggle_popup(),
             Message::PopupClosed(id) => self.handle_popup_closed(id),
             Message::SwitchTab(tab) => self.handle_switch_tab(tab),
-            Message::PlayPause => self.handle_play_pause(),
-            Message::Next => self.handle_next(),
-            Message::Previous => self.handle_previous(),
+            Message::PlayPause | Message::MiddleClick => self.handle_play_pause(),
+            Message::Next | Message::ScrollUp => self.handle_next(),
+            Message::Previous | Message::ScrollDown => self.handle_previous(),
             Message::UpdatePlayerInfo(info) => self.handle_update_player_info(info),
             Message::FindPlayer => self.handle_find_player(),
             Message::UpdateStatus(status) => self.handle_update_status(status),
             Message::VolumeChanged(volume) => self.handle_volume_changed(volume),
-            Message::ScrollUp => self.handle_next(),
-            Message::ScrollDown => self.handle_previous(),
-            Message::MiddleClick => self.handle_play_pause(),
             Message::LoadAlbumArt(url) => self.handle_load_album_art(url),
             Message::AlbumArtLoaded(handle) => self.handle_album_art_loaded(handle),
             Message::DiscoverPlayers => self.handle_discover_players(),
             Message::ToggleAutoDetect(enabled) => self.handle_toggle_auto_detect(enabled),
             Message::SelectPlayer(player) => self.handle_select_player(player),
             Message::UpdateAllPlayersInfo(info) => self.handle_update_all_players_info(info),
-            Message::PlayPausePlayer(bus_name) => self.handle_play_pause_player(bus_name),
-            Message::NextPlayer(bus_name) => self.handle_next_player(bus_name),
-            Message::PreviousPlayer(bus_name) => self.handle_previous_player(bus_name),
-            Message::VolumeChangedPlayer(bus_name, volume) => {
+            Message::PlayPausePlayer(ref bus_name) => self.handle_play_pause_player(bus_name),
+            Message::NextPlayer(ref bus_name) => self.handle_next_player(bus_name),
+            Message::PreviousPlayer(ref bus_name) => self.handle_previous_player(bus_name),
+            Message::VolumeChangedPlayer(ref bus_name, volume) => {
                 self.handle_volume_changed_player(bus_name, volume)
             }
             Message::LoadAlbumArtPlayer(bus_name, url) => {
@@ -261,8 +258,7 @@ impl CosmicAppletMusic {
         let show_all_players = self
             .config_manager
             .as_ref()
-            .map(|config| config.get_show_all_players())
-            .unwrap_or(false);
+            .is_some_and(ConfigManager::get_show_all_players);
 
         if show_all_players {
             // In multi-player mode, update all players
@@ -300,6 +296,7 @@ impl CosmicAppletMusic {
         Task::none()
     }
 
+    #[allow(clippy::unused_self)]
     fn handle_load_album_art(&mut self, url: String) -> Task<Message> {
         Task::perform(
             async move { Self::load_image_from_url(&url).await },
@@ -454,7 +451,7 @@ impl CosmicAppletMusic {
 
     fn handle_update_all_players_info(&mut self, players_info: Vec<PlayerInfo>) -> Task<Message> {
         // Update the list of all players
-        self.all_players_info = players_info.clone();
+        self.all_players_info.clone_from(&players_info);
 
         // Load album arts for new players
         let mut tasks = Vec::new();
@@ -473,8 +470,8 @@ impl CosmicAppletMusic {
         Task::batch(tasks)
     }
 
-    fn handle_play_pause_player(&mut self, bus_name: String) -> Task<Message> {
-        let _ = self.music_controller.play_pause_player(&bus_name);
+    fn handle_play_pause_player(&mut self, bus_name: &str) -> Task<Message> {
+        let _ = self.music_controller.play_pause_player(bus_name);
 
         // Update the player info
         Task::batch([
@@ -485,8 +482,8 @@ impl CosmicAppletMusic {
         ])
     }
 
-    fn handle_next_player(&mut self, bus_name: String) -> Task<Message> {
-        let _ = self.music_controller.next_player(&bus_name);
+    fn handle_next_player(&mut self, bus_name: &str) -> Task<Message> {
+        let _ = self.music_controller.next_player(bus_name);
         Task::batch([
             Task::done(cosmic::Action::App(Message::DiscoverPlayers)),
             Task::done(cosmic::Action::App(Message::UpdateAllPlayersInfo(
@@ -495,8 +492,8 @@ impl CosmicAppletMusic {
         ])
     }
 
-    fn handle_previous_player(&mut self, bus_name: String) -> Task<Message> {
-        let _ = self.music_controller.previous_player(&bus_name);
+    fn handle_previous_player(&mut self, bus_name: &str) -> Task<Message> {
+        let _ = self.music_controller.previous_player(bus_name);
         Task::batch([
             Task::done(cosmic::Action::App(Message::DiscoverPlayers)),
             Task::done(cosmic::Action::App(Message::UpdateAllPlayersInfo(
@@ -505,8 +502,8 @@ impl CosmicAppletMusic {
         ])
     }
 
-    fn handle_volume_changed_player(&mut self, bus_name: String, volume: f64) -> Task<Message> {
-        let _ = self.music_controller.set_volume_player(&bus_name, volume);
+    fn handle_volume_changed_player(&mut self, bus_name: &str, volume: f64) -> Task<Message> {
+        let _ = self.music_controller.set_volume_player(bus_name, volume);
 
         // Update the player info in the list
         if let Some(player) = self
@@ -520,6 +517,7 @@ impl CosmicAppletMusic {
         Task::none()
     }
 
+    #[allow(clippy::unused_self)]
     fn handle_load_album_art_player(&mut self, bus_name: String, url: String) -> Task<Message> {
         Task::perform(
             async move {

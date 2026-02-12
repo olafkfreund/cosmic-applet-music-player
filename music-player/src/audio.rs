@@ -15,15 +15,10 @@ pub struct AudioController {
 }
 
 impl AudioController {
-    pub fn new() -> Result<Self> {
-        Ok(Self {
+    pub fn new() -> Self {
+        Self {
             sink_inputs: Arc::new(Mutex::new(HashMap::new())),
-        })
-    }
-
-    pub fn connect(&self) -> Result<()> {
-        // No connection needed for pactl-based approach
-        Ok(())
+        }
     }
 
     pub fn refresh_sink_inputs(&self) -> Result<()> {
@@ -107,28 +102,32 @@ impl AudioController {
 
         let pattern_lower = app_name_pattern.to_lowercase();
 
-        for sink_input in sink_inputs.values() {
-            let app_name_lower = sink_input.application_name.to_lowercase();
-            if app_name_lower.contains(&pattern_lower) || pattern_lower.contains(&app_name_lower) {
-                return Some(sink_input.clone());
-            }
-        }
-
-        None
+        sink_inputs
+            .values()
+            .find(|sink_input| {
+                let app_name_lower = sink_input.application_name.to_lowercase();
+                app_name_lower.contains(&pattern_lower) || pattern_lower.contains(&app_name_lower)
+            })
+            .cloned()
     }
 
+    #[allow(
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss,
+        clippy::unused_self
+    )]
     pub fn set_sink_input_volume(&self, index: u32, volume: f64) -> Result<()> {
         // Clamp volume to 0.0-1.5 (150%)
         let clamped_volume = volume.clamp(0.0, 1.5);
 
-        // Convert to percentage
-        let volume_percent = (clamped_volume * 100.0) as u32;
+        // Convert to percentage (safe: clamped range guarantees 0..=150)
+        let volume_percent = (clamped_volume * 100.0).round() as u32;
 
         // Use pactl to set volume
         let output = Command::new("pactl")
             .arg("set-sink-input-volume")
             .arg(index.to_string())
-            .arg(format!("{}%", volume_percent))
+            .arg(format!("{volume_percent}%"))
             .output()?;
 
         if !output.status.success() {
@@ -136,11 +135,5 @@ impl AudioController {
         }
 
         Ok(())
-    }
-}
-
-impl Drop for AudioController {
-    fn drop(&mut self) {
-        // No cleanup needed for pactl-based approach
     }
 }

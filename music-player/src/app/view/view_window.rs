@@ -1,4 +1,5 @@
 use crate::app::{CosmicAppletMusic, Message, PopupTab};
+use crate::config::ConfigManager;
 use cosmic::{theme, Element};
 use mpris::PlaybackStatus;
 
@@ -101,13 +102,13 @@ pub fn view_window(app: &CosmicAppletMusic, _id: cosmic::iced::window::Id) -> El
 ///
 /// # Returns
 /// An Element containing the Controls tab UI
+#[allow(clippy::too_many_lines)]
 fn view_controls_tab(app: &CosmicAppletMusic, space_s: f32, space_m: f32) -> Element<'_, Message> {
     // Check if "show all players" mode is enabled
     let show_all_players = app
         .config_manager
         .as_ref()
-        .map(|config| config.get_show_all_players())
-        .unwrap_or(false);
+        .is_some_and(ConfigManager::get_show_all_players);
 
     if show_all_players {
         return view_all_players(app, space_s, space_m);
@@ -117,7 +118,7 @@ fn view_controls_tab(app: &CosmicAppletMusic, space_s: f32, space_m: f32) -> Ele
     let no_player_selected = app
         .config_manager
         .as_ref()
-        .and_then(|config| config.get_selected_player())
+        .and_then(ConfigManager::get_selected_player)
         .is_none();
 
     if no_player_selected {
@@ -177,9 +178,8 @@ fn view_controls_tab(app: &CosmicAppletMusic, space_s: f32, space_m: f32) -> Ele
         .align_y(cosmic::iced::Alignment::Center);
 
     let status_icon = match app.player_info.status {
-        PlaybackStatus::Playing => "media-playback-pause-symbolic", // Show pause when playing
-        PlaybackStatus::Paused => "media-playback-start-symbolic",  // Show play when paused
-        PlaybackStatus::Stopped => "media-playback-start-symbolic", // Show play when stopped
+        PlaybackStatus::Playing => "media-playback-pause-symbolic",
+        PlaybackStatus::Paused | PlaybackStatus::Stopped => "media-playback-start-symbolic",
     };
 
     let controls = cosmic::widget::row()
@@ -244,6 +244,7 @@ fn view_controls_tab(app: &CosmicAppletMusic, space_s: f32, space_m: f32) -> Ele
 ///
 /// # Returns
 /// A scrollable Element containing the Settings tab UI
+#[allow(clippy::too_many_lines)]
 fn view_settings_tab(app: &CosmicAppletMusic, _space_s: f32, space_m: f32) -> Element<'_, Message> {
     // Get discovered players
     let discovered_players = app.music_controller.get_discovered_players();
@@ -305,23 +306,36 @@ fn view_settings_tab(app: &CosmicAppletMusic, _space_s: f32, space_m: f32) -> El
     let show_all_players = app
         .config_manager
         .as_ref()
-        .map(|config| config.get_show_all_players())
-        .unwrap_or(false);
+        .is_some_and(ConfigManager::get_show_all_players);
 
-    if !show_all_players {
+    if show_all_players {
+        settings_content =
+            settings_content.push(cosmic::widget::text::title4("Discovered Players"));
+    } else {
         settings_content = settings_content.push(cosmic::widget::text::title4("Player Selection"));
 
         settings_content = settings_content.push(cosmic::widget::text::caption(
             "Choose which media player to control:",
         ));
-    } else {
-        settings_content =
-            settings_content.push(cosmic::widget::text::title4("Discovered Players"));
     }
 
-    // Only show player selection in single-player mode
-    if !show_all_players {
-        // Get currently selected player
+    // Show player selection based on mode
+    if show_all_players {
+        // In multi-player mode, just list the discovered players
+        if discovered_players.is_empty() {
+            settings_content = settings_content.push(cosmic::widget::text::caption(
+                "No players discovered yet. Click 'Discover Players' to search.",
+            ));
+        } else {
+            for player in &discovered_players {
+                let status_text = if player.is_active { " ♪" } else { "" };
+                let player_text = format!("{}{}", player.identity, status_text);
+
+                settings_content = settings_content.push(cosmic::widget::text::body(player_text));
+            }
+        }
+    } else {
+        // Single-player mode: show player selection radio buttons
         let current_selected = if let Some(ref config) = app.config_manager {
             config.get_selected_player()
         } else {
@@ -375,20 +389,6 @@ fn view_settings_tab(app: &CosmicAppletMusic, _space_s: f32, space_m: f32) -> El
                 "No players discovered yet. Click 'Discover Players' to search.",
             ));
         }
-    } else {
-        // In multi-player mode, just list the discovered players
-        if discovered_players.is_empty() {
-            settings_content = settings_content.push(cosmic::widget::text::caption(
-                "No players discovered yet. Click 'Discover Players' to search.",
-            ));
-        } else {
-            for player in discovered_players.iter() {
-                let status_text = if player.is_active { " ♪" } else { "" };
-                let player_text = format!("{}{}", player.identity, status_text);
-
-                settings_content = settings_content.push(cosmic::widget::text::body(player_text));
-            }
-        }
     }
 
     cosmic::widget::scrollable(settings_content).into()
@@ -413,8 +413,7 @@ fn view_all_players(app: &CosmicAppletMusic, space_s: f32, space_m: f32) -> Elem
     let hide_inactive = app
         .config_manager
         .as_ref()
-        .map(|config| config.get_hide_inactive_players())
-        .unwrap_or(false);
+        .is_some_and(ConfigManager::get_hide_inactive_players);
 
     // Filter players based on hide_inactive setting
     // Only hide Stopped players, keep Playing and Paused visible
@@ -477,6 +476,7 @@ fn view_all_players(app: &CosmicAppletMusic, space_s: f32, space_m: f32) -> Elem
 ///
 /// # Returns
 /// A styled container Element with all player controls
+#[allow(clippy::too_many_lines)]
 fn view_player_card<'a>(
     app: &'a CosmicAppletMusic,
     player: &'a crate::music::PlayerInfo,
@@ -559,8 +559,7 @@ fn view_player_card<'a>(
 
     let status_icon = match player.status {
         PlaybackStatus::Playing => "media-playback-pause-symbolic",
-        PlaybackStatus::Paused => "media-playback-start-symbolic",
-        PlaybackStatus::Stopped => "media-playback-start-symbolic",
+        PlaybackStatus::Paused | PlaybackStatus::Stopped => "media-playback-start-symbolic",
     };
 
     let bus_name = player.bus_name.clone();

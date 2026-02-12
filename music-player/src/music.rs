@@ -49,23 +49,13 @@ pub struct MusicController {
 
 impl MusicController {
     pub fn new() -> Self {
-        // Try to initialize audio controller, but don't fail if it doesn't work
-        let audio_controller = AudioController::new()
-            .and_then(|ac| {
-                ac.connect()?;
-                Ok(Arc::new(ac))
-            })
-            .ok();
-
-        if audio_controller.is_none() {
-            eprintln!("Warning: Failed to initialize PulseAudio/PipeWire audio controller");
-        }
+        let audio_controller = Arc::new(AudioController::new());
 
         Self {
             player: Rc::new(RefCell::new(None)),
             discovered_players: Rc::new(RefCell::new(HashMap::new())),
             all_players: Rc::new(RefCell::new(HashMap::new())),
-            audio_controller,
+            audio_controller: Some(audio_controller),
         }
     }
 
