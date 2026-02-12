@@ -413,9 +413,7 @@ impl CosmicAppletMusic {
         .flatten()
         .collect();
 
-        safe_prefixes
-            .iter()
-            .any(|prefix| path.starts_with(prefix))
+        safe_prefixes.iter().any(|prefix| path.starts_with(prefix))
     }
 
     fn handle_album_art_loaded(

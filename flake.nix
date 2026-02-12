@@ -8,7 +8,7 @@
   };
 
   outputs = { self, nixpkgs, crane, flake-utils }:
-    flake-utils.lib.eachDefaultSystem (system:
+    flake-utils.lib.eachSystem [ "x86_64-linux" ] (system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
         craneLib = crane.mkLib pkgs;
@@ -28,19 +28,21 @@
           pname = "cosmic-ext-applet-music-player";
           version = "1.0.0";
 
-          nativeBuildInputs = with pkgs; [
-            pkg-config
+          strictDeps = true;
+
+          nativeBuildInputs = [
+            pkgs.pkg-config
           ];
 
-          buildInputs = with pkgs; [
-            dbus
-            openssl
-            libpulseaudio
-            libxkbcommon
-            wayland
+          buildInputs = [
+            pkgs.dbus
+            pkgs.openssl
+            pkgs.libpulseaudio
+            pkgs.libxkbcommon
+            pkgs.wayland
           ];
 
-          # Required for Wayland support
+          # Required for bindgen in Wayland crates
           LIBCLANG_PATH = "${pkgs.libclang.lib}/lib";
         };
 
@@ -67,12 +69,12 @@
             runHook postInstall
           '';
 
-          meta = with pkgs.lib; {
+          meta = {
             description = "Music Player applet with MPRIS integration for COSMIC desktop";
             homepage = "https://github.com/olafkfreund/cosmic-applet-music-player";
-            license = licenses.gpl3Only;
-            maintainers = with maintainers; [ ];
-            platforms = platforms.linux;
+            license = pkgs.lib.licenses.gpl3Only;
+            maintainers = [ ];
+            platforms = pkgs.lib.platforms.linux;
             mainProgram = "cosmic-ext-applet-music-player";
           };
         });
@@ -83,13 +85,13 @@
           default = cosmic-music-player;
         };
 
-        # Crane provides a much better development shell
         devShells.default = craneLib.devShell {
-          packages = with pkgs; [
-            rust-analyzer
-            rustfmt
-            clippy
-            cargo-watch
+          packages = [
+            pkgs.just
+            pkgs.rust-analyzer
+            pkgs.rustfmt
+            pkgs.clippy
+            pkgs.cargo-watch
           ];
 
           # Inherit build inputs from commonArgs
@@ -116,17 +118,10 @@
           # Check formatting
           workspace-fmt = craneLib.cargoFmt {
             src = ./.;
+            pname = "cosmic-ext-applet-music-player";
+            version = "1.0.0";
             cargoExtraArgs = "--manifest-path music-player/Cargo.toml";
           };
-
-          # Note: Tests are disabled as the project currently has no automated tests
-          # See CLAUDE.md for details. Uncomment when tests are added:
-          # workspace-test = craneLib.cargoNextest (commonArgs // {
-          #   inherit cargoArtifacts;
-          #   cargoExtraArgs = "--manifest-path music-player/Cargo.toml";
-          #   partitions = 1;
-          #   partitionType = "count";
-          # });
         };
       }
     );
